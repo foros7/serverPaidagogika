@@ -12,6 +12,9 @@ function App() {
   const [assignments, setAssignments] = useState([]);
   const [tests, setTests] = useState([]);
   const [discussions, setDiscussions] = useState([]);
+  const [newItems, setNewItems] = useState(new Set());
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -42,12 +45,15 @@ function App() {
     }
   };
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
+  const handleFileUpload = async (fileInput) => {
+    const file = fileInput.files[0];
+    if (!file) return;
+
     const formData = new FormData();
     formData.append('file', file);
 
     try {
+      setIsLoading(true);
       const response = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
         body: formData,
@@ -56,11 +62,24 @@ function App() {
       if (response.ok) {
         const data = await response.json();
         setMaterials(prevMaterials => [...prevMaterials, data]);
+        setNewItems(prev => new Set([...prev, data.filename]));
+        setTimeout(() => {
+          setNewItems(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(data.filename);
+            return newSet;
+          });
+        }, 5000);
+        handleSuccess();
+        fileInput.value = '';
       } else {
-        console.error('Σφάλμα κατά τη μεταφόρτωση του αρχείου');
+        const errorData = await response.json();
+        console.error('Σφάλμα:', errorData.error);
       }
     } catch (error) {
       console.error('Σφάλμα:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -72,6 +91,99 @@ function App() {
     if (window.confirm('Είστε σίγουροι ότι θέλετε να αποσυνδεθείτε;')) {
       setUser(null);
       setActiveComponent('dashboard');
+    }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const handleAnnouncementSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+        const text = document.querySelector('textarea').value;
+        const newAnnouncement = { 
+            text,
+            author: user.username,
+            date: new Date().toISOString()
+        };
+        
+        const response = await fetch(`${API_URL}/api/announcements`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(newAnnouncement)
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            setAnnouncements(prev => [...prev, data]);
+            document.querySelector('textarea').value = '';
+            handleSuccess();
+        } else {
+            const error = await response.json();
+            console.error('Error:', error);
+        }
+    } catch (error) {
+        console.error('Error posting announcement:', error);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const handleDeleteMaterial = async (filename) => {
+    if (window.confirm('Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το αρχείο;')) {
+        try {
+            setIsLoading(true);
+            const response = await fetch(`${API_URL}/api/files/${filename}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                setMaterials(prevMaterials => 
+                    prevMaterials.filter(m => m.filename !== filename)
+                );
+                handleSuccess();
+            } else {
+                const data = await response.json();
+                console.error('Error:', data.error);
+            }
+        } catch (error) {
+            console.error('Error deleting file:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    }
+  };
+
+  const handleDeleteAnnouncement = async (id) => {
+    if (window.confirm('Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την ανακοίνωση;')) {
+        try {
+            setIsLoading(true);
+            console.log('Deleting announcement with id:', id);
+            
+            const response = await fetch(`${API_URL}/api/announcements/${id}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                setAnnouncements(prev => prev.filter(a => a.id !== id));
+                handleSuccess();
+            } else {
+                const error = await response.json();
+                console.error('Error:', error);
+            }
+        } catch (error) {
+            console.error('Error deleting announcement:', error);
+        } finally {
+            setIsLoading(false);
+        }
     }
   };
 
@@ -135,23 +247,51 @@ function App() {
             <h3>Εκπαιδευτικό Υλικό</h3>
             {user?.role === 'instructor' && (
               <div className="upload-section">
-                <input 
-                  type="file" 
-                  onChange={handleFileUpload}
-                  className="file-input" 
-                />
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const fileInput = document.querySelector('input[type="file"]');
+                  if (fileInput.files.length > 0) {
+                    handleFileUpload(fileInput);
+                  }
+                }}>
+                  <input
+                    type="file"
+                    className="file-input"
+                    onChange={(e) => {
+                      setShowSuccess(false);
+                    }}
+                  />
+                  <button 
+                    type="submit"
+                    className={isLoading ? 'loading' : ''}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? <span className="loading-dots">Μεταφόρτωση</span> : 'Ανέβασμα Αρχείου'}
+                  </button>
+                </form>
               </div>
             )}
             <div className="materials-list">
               {materials.map((material, index) => (
-                <div key={index} className="material-item">
-                  <a 
-                    href={`http://localhost:5001${material.path}`}
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                  >
-                    {material.originalname || material.filename}
-                  </a>
+                <div key={index} className={`material-item ${newItems.has(material.filename) ? 'new-item' : ''}`}>
+                  <div className="material-content">
+                    <a href={material.url} target="_blank" rel="noopener noreferrer">
+                      {material.originalname}
+                    </a>
+                    <div className="metadata">
+                      <span>Ανέβηκε: {new Date(material.uploadDate).toLocaleString('el-GR')}</span>
+                      <span> • </span>
+                      <span>Μέγεθος: {formatFileSize(material.size)}</span>
+                    </div>
+                  </div>
+                  {user?.role === 'instructor' && (
+                    <button 
+                      className="delete-button"
+                      onClick={() => handleDeleteMaterial(material.filename)}
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -165,26 +305,36 @@ function App() {
             {user?.role === 'instructor' && (
               <div className="announcement-form">
                 <textarea 
-                  placeholder="Νέα ανακοίνωση..."
-                  onChange={(e) => {}}
+                  placeholder="Γράψτε την ανακοίνωσή σας..."
+                  required
                 />
-                <button onClick={() => {
-                  const newAnnouncement = { 
-                    text: document.querySelector('textarea').value,
-                    date: new Date().toLocaleDateString()
-                  };
-                  setAnnouncements([...announcements, newAnnouncement]);
-                  document.querySelector('textarea').value = '';
-                }}>
-                  Δημοσίευση
+                <button 
+                  onClick={handleAnnouncementSubmit}
+                  className={isLoading ? 'loading' : ''}
+                >
+                  {isLoading ? <span className="loading-dots">Υποβολή</span> : 'Υποβολή'}
                 </button>
               </div>
             )}
             <div className="announcements-list">
               {announcements.map((announcement, index) => (
                 <div key={index} className="announcement-item">
-                  <p>{announcement.text}</p>
-                  <small>{announcement.date}</small>
+                  <div className="announcement-content">
+                    <p>{announcement.text}</p>
+                    <div className="metadata">
+                      <span>Από: {announcement.author}</span>
+                      <span> • </span>
+                      <span>{new Date(announcement.date).toLocaleString('el-GR')}</span>
+                    </div>
+                  </div>
+                  {user?.role === 'instructor' && (
+                    <button 
+                      className="delete-button"
+                      onClick={() => handleDeleteAnnouncement(announcement.id)}
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -279,6 +429,11 @@ function App() {
     }
   };
 
+  const handleSuccess = () => {
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 2000);
+  };
+
   return (
     <div className="App">
       <header className="App-header">
@@ -303,6 +458,11 @@ function App() {
           </div>
         )}
       </header>
+      {showSuccess && (
+        <div className="success-checkmark">
+          <span>✓</span>
+        </div>
+      )}
     </div>
   );
 }

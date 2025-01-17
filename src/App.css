@@ -8,8 +8,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   color: white;
+  padding: 0;
 }
 
 .login-buttons {
@@ -22,7 +23,10 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding: 20px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .instructor-options,
@@ -47,10 +51,10 @@ button:hover {
 }
 
 .content-section {
-  width: 80%;
-  max-width: 800px;
-  margin: 20px auto;
-  padding: 20px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
   background-color: rgba(255, 255, 255, 0.1);
   border-radius: 8px;
 }
@@ -81,16 +85,25 @@ textarea {
 }
 
 .top-nav {
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.2));
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
   width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px;
+  padding: 0.5rem 2rem;
+  margin: 0;
+  box-sizing: border-box;
 }
 
 .main-content {
   width: 100%;
-  height: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 input[type="text"],
@@ -117,11 +130,30 @@ a:hover {
 }
 
 .upload-section {
-  margin: 20px 0;
-  padding: 20px;
-  border: 2px dashed rgba(97, 218, 251, 0.5);
-  border-radius: 8px;
+  background: linear-gradient(145deg, rgba(97, 218, 251, 0.1), rgba(97, 218, 251, 0.05));
+  border: 2px dashed rgba(97, 218, 251, 0.3);
+  padding: 30px;
+  margin-bottom: 20px;
+  border-radius: 10px;
   text-align: center;
+  transition: all 0.3s ease;
+}
+
+.upload-section form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  align-items: center;
+}
+
+.upload-section button {
+  min-width: 150px;
+  background: linear-gradient(145deg, #61dafb, #4fa8c7);
+}
+
+.upload-section button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .file-input {
@@ -166,12 +198,15 @@ a:hover {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-shrink: 0;
 }
 
 .user-info {
   display: flex;
   align-items: center;
   gap: 1rem;
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 .username {
@@ -185,6 +220,9 @@ a:hover {
   color: #ff6b6b;
   padding: 8px 16px;
   font-size: 14px;
+  white-space: nowrap;
+  margin-left: 1rem;
+  flex-shrink: 0;
 }
 
 .logout-button:hover {
@@ -199,4 +237,389 @@ a:hover {
 
 .content-section h3 {
   margin: 0;
+}
+
+/* Βελτιώσεις για τα cards */
+.material-item, .announcement-item, .discussion-item, .test-item {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  padding: 20px;
+  margin: 15px 0;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.material-item:hover, .announcement-item:hover, .discussion-item:hover, .test-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Βελτιώσεις για τα κουμπιά */
+.dashboard button {
+  background: linear-gradient(145deg, #61dafb, #4fa8c7);
+  border: none;
+  padding: 12px 24px;
+  margin: 5px;
+  border-radius: 8px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+}
+
+.dashboard button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(97, 218, 251, 0.3);
+}
+
+/* Βελτιώσεις για τις φόρμες */
+.announcement-form textarea, 
+.discussion-form textarea {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid rgba(97, 218, 251, 0.3);
+  transition: border-color 0.3s ease;
+}
+
+.announcement-form textarea:focus, 
+.discussion-form textarea:focus {
+  border-color: #61dafb;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(97, 218, 251, 0.2);
+}
+
+/* Μεταμόρφωση για το upload section */
+.upload-section {
+  background: linear-gradient(145deg, rgba(97, 218, 251, 0.1), rgba(97, 218, 251, 0.05));
+  border: 2px dashed rgba(97, 218, 251, 0.3);
+  padding: 30px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.upload-section:hover {
+  border-color: #61dafb;
+  background: linear-gradient(145deg, rgba(97, 218, 251, 0.15), rgba(97, 218, 251, 0.1));
+}
+
+/* Βελτιώσεις για το navigation */
+.top-nav {
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.2));
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+/* Βελτιώσεις για τις ημερομηνίες και μεταδεδομένα */
+.metadata {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 8px;
+}
+
+/* Loading states */
+.loading {
+  position: relative;
+  opacity: 0.7;
+}
+
+.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(97, 218, 251, 0.3);
+  border-top-color: #61dafb;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .content-section {
+    width: 95%;
+    padding: 15px;
+  }
+
+  .top-nav {
+    padding: 0.5rem 1rem;
+  }
+
+  .dashboard button {
+    width: 100%;
+  }
+}
+
+/* Animated Background */
+.App-header {
+  background: linear-gradient(-45deg, #282c34, #1a1d24, #23272f, #1c1e24);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
+}
+
+@keyframes gradientBG {
+  0% { background-position: 0% 50% }
+  50% { background-position: 100% 50% }
+  100% { background-position: 0% 50% }
+}
+
+/* Animated Cards */
+.material-item, .announcement-item, .discussion-item, .test-item {
+  animation: fadeInUp 0.5s ease-out;
+  animation-fill-mode: both;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Pulse animation for new items */
+.new-item {
+  position: relative;
+}
+
+.new-item::before {
+  content: 'NEW';
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background: #61dafb;
+  color: #282c34;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+/* Interactive Buttons */
+button {
+  position: relative;
+  overflow: hidden;
+}
+
+button::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.5);
+  opacity: 0;
+  border-radius: 100%;
+  transform: scale(1, 1) translate(-50%);
+  transform-origin: 50% 50%;
+}
+
+button:active::after {
+  animation: ripple 0.6s ease-out;
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0, 0);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(40, 40);
+    opacity: 0;
+  }
+}
+
+/* Hover Effects */
+.material-item a {
+  position: relative;
+  display: inline-block;
+}
+
+.material-item a::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  bottom: -2px;
+  left: 0;
+  background-color: #61dafb;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.3s ease;
+}
+
+.material-item a:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+/* Loading Animation */
+.loading-dots::after {
+  content: '';
+  animation: dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes dots {
+  0%, 20% { content: ''; }
+  40% { content: '.'; }
+  60% { content: '..'; }
+  80% { content: '...'; }
+}
+
+/* Success Animation */
+.success-checkmark {
+  position: relative;
+  animation: checkmark 0.8s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+@keyframes checkmark {
+  0% { transform: scale(0); }
+  100% { transform: scale(1); }
+}
+
+/* Notification Badge */
+.notification-badge {
+  position: relative;
+}
+
+.notification-badge::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 10px;
+  height: 10px;
+  background-color: #ff6b6b;
+  border-radius: 50%;
+  animation: notify-pulse 2s infinite;
+}
+
+@keyframes notify-pulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(255, 107, 107, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); }
+}
+
+.nav-left h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .top-nav {
+    padding: 0.5rem 1rem;
+  }
+
+  .nav-left h1 {
+    font-size: 1.2rem;
+  }
+
+  .username {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 480px) {
+  .nav-left h1 {
+    font-size: 1rem;
+  }
+
+  .username {
+    max-width: 80px;
+  }
+
+  .logout-button {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Delete button styles */
+.delete-button {
+  background: transparent;
+  border: none;
+  color: #ff6b6b;
+  font-size: 1.5rem;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0;
+  position: absolute;
+  right: 10px;
+  top: 10px;
+}
+
+.material-item:hover .delete-button,
+.announcement-item:hover .delete-button {
+  opacity: 1;
+}
+
+.delete-button:hover {
+  color: #ff4f4f;
+  transform: scale(1.1);
+}
+
+/* Item container styles */
+.material-item,
+.announcement-item {
+  position: relative;
+  padding-right: 40px;
+}
+
+.material-content,
+.announcement-content {
+  margin-right: 20px;
+}
+
+/* Confirmation dialog styles */
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dialog-content {
+  background: #282c34;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+}
+
+.dialog-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
 }
