@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './Auth.css';
 
-const API_URL = process.env.REACT_APP_API_URL;
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 function Auth({ onLogin }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -16,13 +16,16 @@ function Auth({ onLogin }) {
     setIsLoading(true);
 
     try {
-      console.log('Attempting to connect to:', `${API_URL}/api/${isLogin ? 'login' : 'signup'}`);
+      const endpoint = `${API_URL}/api/${isLogin ? 'login' : 'signup'}`;
+      console.log('Attempting to connect to:', endpoint);
       
-      const response = await fetch(`${API_URL}/api/${isLogin ? 'login' : 'signup'}`, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
+        mode: 'cors',
         body: JSON.stringify({
           username,
           password,
@@ -30,10 +33,16 @@ function Auth({ onLogin }) {
         }),
       });
 
-      const data = await response.json();
-      
       if (!response.ok) {
-        throw new Error(data.error || 'Σφάλμα επικοινωνίας με τον server');
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Response data:', data);
+      
+      if (!data.user) {
+        throw new Error('Invalid response format');
       }
 
       onLogin(data.user);
