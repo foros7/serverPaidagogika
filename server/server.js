@@ -69,6 +69,7 @@ let announcements = [];
 let tests = [];
 let discussions = [];
 let materials = [];
+let grades = [];
 
 // Ρύθμιση του multer για αποθήκευση αρχείων
 const storage = multer.diskStorage({
@@ -317,6 +318,76 @@ app.get('/api/files/:filename/check', (req, res) => {
         res.json({ exists: true, path: filePath });
     } else {
         res.status(404).json({ exists: false, path: filePath });
+    }
+});
+
+// Προσθέστε τα νέα routes για τους βαθμούς
+app.post('/api/grades', (req, res) => {
+    try {
+        const { studentId, subject, grade, instructor } = req.body;
+        
+        // Έλεγχος εγκυρότητας βαθμού
+        if (grade < 0 || grade > 20) {
+            return res.status(400).json({ error: 'Ο βαθμός πρέπει να είναι μεταξύ 0 και 20' });
+        }
+
+        // Έλεγχος αν υπάρχει ήδη βαθμός για αυτό το μάθημα
+        const existingGradeIndex = grades.findIndex(g => 
+            g.studentId === studentId && g.subject === subject
+        );
+
+        if (existingGradeIndex !== -1) {
+            // Ενημέρωση υπάρχοντος βαθμού
+            grades[existingGradeIndex] = {
+                ...grades[existingGradeIndex],
+                grade,
+                instructor,
+                date: new Date().toISOString()
+            };
+            console.log('Grade updated:', grades[existingGradeIndex]);
+            res.json(grades[existingGradeIndex]);
+        } else {
+            // Προσθήκη νέου βαθμού
+            const newGrade = {
+                id: Date.now(),
+                studentId,
+                subject,
+                grade,
+                instructor,
+                date: new Date().toISOString()
+            };
+            grades.push(newGrade);
+            console.log('New grade added:', newGrade);
+            res.json(newGrade);
+        }
+    } catch (error) {
+        console.error('Error handling grade:', error);
+        res.status(500).json({ error: 'Σφάλμα κατά την διαχείριση βαθμού' });
+    }
+});
+
+// Get όλων των βαθμών ενός μαθητή
+app.get('/api/grades/:studentId', (req, res) => {
+    try {
+        const studentGrades = grades.filter(g => g.studentId === parseInt(req.params.studentId));
+        res.json(studentGrades);
+    } catch (error) {
+        console.error('Error fetching grades:', error);
+        res.status(500).json({ error: 'Σφάλμα κατά την ανάκτηση βαθμών' });
+    }
+});
+
+// Get όλων των μαθητών
+app.get('/api/students', (req, res) => {
+    try {
+        const students = users.filter(user => user.role === 'student').map(student => ({
+            id: student.id,
+            username: student.username
+        }));
+        res.json(students);
+    } catch (error) {
+        console.error('Error fetching students:', error);
+        res.status(500).json({ error: 'Σφάλμα κατά την ανάκτηση μαθητών' });
     }
 });
 

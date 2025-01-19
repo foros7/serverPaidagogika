@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Auth from './components/Auth';
 import './App.css';
+import GradeManagement from './components/GradeManagement';
+import StudentGrades from './components/StudentGrades';
 
 const API_URL = process.env.REACT_APP_API_URL;
 
@@ -212,12 +214,17 @@ function App() {
             <button onClick={() => setActiveComponent('announcements')}>Ανακοινώσεις</button>
             <button onClick={() => setActiveComponent('assignments')}>Ανάθεση Εργασίας</button>
             <button onClick={() => setActiveComponent('progress')}>Πρόοδος Εκπαιδευόμενων</button>
+            <button onClick={() => setActiveComponent('grades')}>
+              Διαχείριση Βαθμών
+            </button>
           </div>
         ) : (
           <div className="student-options">
             <button onClick={() => setActiveComponent('materials')}>Εκπαιδευτικό Υλικό</button>
             <button onClick={() => setActiveComponent('tests')}>Γραπτές Δοκιμασίες</button>
-            <button onClick={() => setActiveComponent('grades')}>Βαθμολογία</button>
+            <button onClick={() => setActiveComponent('grades')}>
+              Οι Βαθμοί μου
+            </button>
             <button onClick={() => setActiveComponent('announcements')}>Ανακοινώσεις</button>
             <button onClick={() => setActiveComponent('discussions')}>Συζητήσεις</button>
           </div>
@@ -403,6 +410,18 @@ function App() {
           </div>
         );
 
+      case 'grades':
+        return (
+          <div className="content-section">
+            <h3>Βαθμολογίες</h3>
+            {user?.role === 'instructor' ? (
+              <GradeManagement user={user} />
+            ) : (
+              <StudentGrades studentId={user.id} />
+            )}
+          </div>
+        );
+
       default:
         return (
           <div className="dashboard">
@@ -419,7 +438,9 @@ function App() {
               <div className="student-options">
                 <button onClick={() => setActiveComponent('materials')}>Εκπαιδευτικό Υλικό</button>
                 <button onClick={() => setActiveComponent('tests')}>Γραπτές Δοκιμασίες</button>
-                <button onClick={() => setActiveComponent('grades')}>Βαθμολογία</button>
+                <button onClick={() => setActiveComponent('grades')}>
+                  Οι Βαθμοί μου
+                </button>
                 <button onClick={() => setActiveComponent('announcements')}>Ανακοινώσεις</button>
                 <button onClick={() => setActiveComponent('discussions')}>Συζητήσεις</button>
               </div>

@@ -57,6 +57,8 @@ button:hover {
   margin: 0 auto;
   background-color: rgba(255, 255, 255, 0.1);
   border-radius: 8px;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .announcement-form,
@@ -104,6 +106,9 @@ textarea {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  padding: 0 1rem;
+  box-sizing: border-box;
 }
 
 input[type="text"],
@@ -622,4 +627,124 @@ button:active::after {
   justify-content: center;
   gap: 10px;
   margin-top: 20px;
+}
+
+/* Διορθώστε το .grade-management */
+.grade-management {
+  display: flex;
+  gap: 2rem;
+  padding: 1rem;
+  flex-wrap: wrap;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Διορθώστε το .students-list */
+.students-list {
+  flex: 1;
+  min-width: 250px;
+  max-width: 300px;
+}
+
+/* Διορθώστε το .grade-form */
+.grade-form {
+  flex: 2;
+  min-width: 300px;
+  max-width: 100%;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+/* Διορθώστε το .grades-grid */
+.grades-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  width: 100%;
+}
+
+/* Διορθώστε το .grade-card */
+.grade-card {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Προσθέστε responsive styles */
+@media (max-width: 768px) {
+  .content-section {
+    padding: 1rem;
+  }
+
+  .grade-management {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .students-list {
+    max-width: 100%;
+  }
+
+  .grade-form {
+    padding: 1rem;
+  }
+
+  .grades-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Διορθώστε το .material-item και .announcement-item */
+.material-item,
+.announcement-item {
+  position: relative;
+  padding: 15px 40px 15px 15px;
+  margin: 10px 0;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 5px;
+  word-break: break-word;
+}
+
+/* Διορθώστε το .material-content και .announcement-content */
+.material-content,
+.announcement-content {
+  margin-right: 20px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  hyphens: auto;
+}
+
+/* Διορθώστε τα links */
+.material-content a {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-all;
+}
+
+/* Διορθώστε το .metadata */
+.metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Διορθώστε το .upload-section */
+.upload-section {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 1.5rem;
+}
+
+/* Διορθώστε το .file-input */
+.file-input {
+  width: 100%;
+  max-width: 400px;
+  margin: 1rem 0;
 }
