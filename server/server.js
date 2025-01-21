@@ -8,46 +8,26 @@ const bcrypt = require('bcryptjs');
 
 const app = express();
 
-// Διορθώστε το CORS configuration στην αρχή του αρχείου
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'https://p22095.netlify.app'
-];
-
-// Ρυθμίσεις CORS
+// Αφαιρέστε το παλιό CORS middleware και προσθέστε το νέο
 app.use(cors({
-  origin: function(origin, callback) {
-    // Επιτρέπουμε requests χωρίς origin (όπως mobile apps ή curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  origin: 'https://p22095.netlify.app',
   credentials: true,
-  preflightContinue: false,
-  optionsSuccessStatus: 204
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
 }));
 
-// Προσθέστε OPTIONS handler για όλα τα routes
-app.options('*', cors());
-
-// Προσθέστε error handler για CORS errors
-app.use((err, req, res, next) => {
-  if (err.message === 'Not allowed by CORS') {
-    res.status(403).json({
-      error: 'CORS not allowed',
-      origin: req.headers.origin,
-      allowedOrigins
-    });
-  } else {
-    next(err);
+// Προσθέστε τα headers σε κάθε response
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://p22095.netlify.app');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
   }
+  next();
 });
 
 // Δημιουργία του uploads directory
@@ -63,13 +43,119 @@ if (!fs.existsSync(uploadsDir)) {
 app.use('/files', express.static(uploadsDir));
 app.use(express.json());
 
-// Προσωρινή βάση δεδομένων
+// Αλλάξτε το DATA_FILE path για να χρησιμοποιεί μόνιμο φάκελο
+const DATA_FILE = process.env.NODE_ENV === 'production'
+  ? path.join('/data', 'data.json')
+  : path.join(__dirname, 'data', 'data.json');
+
+// Δημιουργία του data directory αν δεν υπάρχει
+const dataDir = path.dirname(DATA_FILE);
+if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+}
+
+// Αρχικοποίηση μεταβλητών
 let users = [];
 let announcements = [];
 let tests = [];
 let discussions = [];
 let materials = [];
 let grades = [];
+let quizzes = [];
+let quizSubmissions = [];
+
+// Βελτιωμένη συνάρτηση για αποθήκευση δεδομένων
+const saveData = () => {
+    try {
+        const data = {
+            users,
+            announcements,
+            tests,
+            discussions,
+            materials,
+            grades,
+            quizzes,
+            quizSubmissions
+        };
+        
+        // Δημιουργία προσωρινού αρχείου
+        const tempFile = `${DATA_FILE}.tmp`;
+        fs.writeFileSync(tempFile, JSON.stringify(data, null, 2));
+        
+        // Μετονομασία του προσωρινού αρχείου στο τελικό
+        fs.renameSync(tempFile, DATA_FILE);
+        
+        console.log('Data saved successfully');
+    } catch (error) {
+        console.error('Error saving data:', error);
+        // Προσπάθεια επαναφοράς του προσωρινού αρχείου αν υπάρχει
+        const tempFile = `${DATA_FILE}.tmp`;
+        if (fs.existsSync(tempFile)) {
+            try {
+                fs.renameSync(tempFile, DATA_FILE);
+            } catch (e) {
+                console.error('Error recovering data file:', e);
+            }
+        }
+    }
+};
+
+// Βελτιωμένη συνάρτηση για φόρτωση δεδομένων
+const loadData = () => {
+    try {
+        if (fs.existsSync(DATA_FILE)) {
+            const fileData = fs.readFileSync(DATA_FILE, 'utf8');
+            const data = JSON.parse(fileData);
+            
+            // Ενημέρωση των μεταβλητών με τα δεδομένα από το αρχείο
+            users = data.users || [];
+            announcements = data.announcements || [];
+            tests = data.tests || [];
+            discussions = data.discussions || [];
+            materials = data.materials || [];
+            grades = data.grades || [];
+            quizzes = data.quizzes || [];
+            quizSubmissions = data.quizSubmissions || [];
+            
+            console.log('Data loaded successfully');
+        } else {
+            // Δημιουργία του αρχείου με αρχικά δεδομένα αν δεν υπάρχει
+            const initialData = {
+                users,
+                announcements,
+                tests,
+                discussions,
+                materials,
+                grades,
+                quizzes,
+                quizSubmissions
+            };
+            fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
+            console.log('Initial data file created');
+        }
+    } catch (error) {
+        console.error('Error loading data:', error);
+    }
+};
+
+// Φόρτωση δεδομένων κατά την εκκίνηση
+loadData();
+
+// Αυτόματη αποθήκευση κάθε 5 λεπτά
+setInterval(saveData, 5 * 60 * 1000);
+
+// Αποθήκευση δεδομένων πριν τον τερματισμό
+process.on('SIGINT', () => {
+    console.log('Saving data before exit...');
+    saveData();
+    process.exit();
+});
+
+process.on('SIGTERM', () => {
+    console.log('Saving data before exit...');
+    saveData();
+    process.exit();
+});
 
 // Ρύθμιση του multer για αποθήκευση αρχείων
 const storage = multer.diskStorage({
@@ -112,6 +198,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 
         // Προσθήκη στη λίστα materials
         materials.push(fileData);
+        saveData(); // Προσθήκη αποθήκευσης
 
         console.log('File uploaded:', fileData);
         console.log('Upload directory:', uploadsDir);
@@ -132,30 +219,59 @@ app.get('/api/files', (req, res) => {
 // Authentication routes
 app.post('/api/signup', async (req, res) => {
     try {
-        console.log('Signup request received:', req.body);
+        console.log('Signup request received:', { ...req.body, password: '[HIDDEN]' });
         const { username, password, role } = req.body;
         
+        // Βασικός έλεγχος
         if (!username || !password || !role) {
             return res.status(400).json({ error: 'Όλα τα πεδία είναι υποχρεωτικά' });
         }
 
+        // Έλεγχος μήκους username
+        if (username.length < 3 || username.length > 20) {
+            return res.status(400).json({ error: 'Το username πρέπει να είναι μεταξύ 3 και 20 χαρακτήρες' });
+        }
+
+        // Έλεγχος για επιτρεπτούς χαρακτήρες στο username
+        const usernameRegex = /^[a-zA-Z0-9\u0370-\u03FF\u1F00-\u1FFF]+$/;
+        if (!usernameRegex.test(username)) {
+            return res.status(400).json({ 
+                error: 'Το username μπορεί να περιέχει μόνο γράμματα, αριθμούς και ελληνικούς χαρακτήρες' 
+            });
+        }
+
+        // Έλεγχος για διπλότυπο username
         if (users.find(u => u.username === username)) {
             return res.status(400).json({ error: 'Το username υπάρχει ήδη' });
         }
 
+        // Έλεγχος μήκους password
+        if (password.length < 6) {
+            return res.status(400).json({ error: 'Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες' });
+        }
+
+        // Δημιουργία νέου χρήστη
         const hashedPassword = await bcrypt.hash(password, 10);
         const newUser = {
-            id: users.length + 1,
+            id: Date.now(),
             username,
             password: hashedPassword,
-            role
+            role,
+            createdAt: new Date().toISOString()
         };
         
         users.push(newUser);
+        saveData();
+
         console.log('New user created:', { ...newUser, password: '[HIDDEN]' });
         
-        const userResponse = { ...newUser };
-        delete userResponse.password;
+        // Αφαίρεση ευαίσθητων δεδομένων πριν την αποστολή
+        const userResponse = { 
+            id: newUser.id,
+            username: newUser.username,
+            role: newUser.role,
+            createdAt: newUser.createdAt
+        };
         
         res.json({ user: userResponse });
     } catch (error) {
@@ -195,6 +311,7 @@ app.post('/api/announcements', (req, res) => {
             date: new Date().toISOString()
         };
         announcements.push(newAnnouncement);
+        saveData(); // Προσθήκη αποθήκευσης
         
         console.log('New announcement:', newAnnouncement);
         console.log('Total announcements:', announcements.length);
@@ -258,6 +375,7 @@ app.delete('/api/files/:filename', (req, res) => {
     const index = materials.findIndex(m => m.filename === filename);
     if (index !== -1) {
       materials.splice(index, 1);
+      saveData(); // Προσθήκη αποθήκευσης
     }
     
     res.json({ message: 'Το αρχείο διαγράφηκε επιτυχώς' });
@@ -284,6 +402,7 @@ app.delete('/api/announcements/:id', (req, res) => {
         const deletedAnnouncement = announcements.splice(index, 1)[0];
         console.log('Deleted announcement:', deletedAnnouncement);
         console.log('Remaining announcements:', announcements);
+        saveData(); // Προσθήκη αποθήκευσης
         
         res.json({ 
             message: 'Η ανακοίνωση διαγράφηκε επιτυχώς',
@@ -345,6 +464,7 @@ app.post('/api/grades', (req, res) => {
                 date: new Date().toISOString()
             };
             console.log('Grade updated:', grades[existingGradeIndex]);
+            saveData(); // Προσθήκη αποθήκευσης
             res.json(grades[existingGradeIndex]);
         } else {
             // Προσθήκη νέου βαθμού
@@ -358,6 +478,7 @@ app.post('/api/grades', (req, res) => {
             };
             grades.push(newGrade);
             console.log('New grade added:', newGrade);
+            saveData(); // Προσθήκη αποθήκευσης
             res.json(newGrade);
         }
     } catch (error) {
@@ -391,6 +512,134 @@ app.get('/api/students', (req, res) => {
     }
 });
 
+// Προσθέστε τα νέα routes για τα quiz
+app.post('/api/quizzes', (req, res) => {
+    try {
+        const { title, questions, instructor, dueDate } = req.body;
+        
+        // Validation
+        if (!title || !questions || !instructor || !Array.isArray(questions)) {
+            return res.status(400).json({ error: 'Λείπουν απαραίτητα πεδία' });
+        }
+
+        if (questions.length === 0) {
+            return res.status(400).json({ error: 'Το quiz πρέπει να έχει τουλάχιστον μία ερώτηση' });
+        }
+
+        const newQuiz = {
+            id: Date.now(),
+            title,
+            questions,
+            instructor,
+            dueDate,
+            createdAt: new Date().toISOString(),
+            isActive: true
+        };
+
+        quizzes.push(newQuiz);
+        saveData();
+        res.json(newQuiz);
+    } catch (error) {
+        console.error('Error creating quiz:', error);
+        res.status(500).json({ error: 'Σφάλμα κατά τη δημιουργία του quiz' });
+    }
+});
+
+// Get όλων των quiz
+app.get('/api/quizzes', (req, res) => {
+    try {
+        res.json(quizzes);
+    } catch (error) {
+        console.error('Error fetching quizzes:', error);
+        res.status(500).json({ error: 'Σφάλμα κατά την ανάκτηση των quiz' });
+    }
+});
+
+// Get ενός συγκεκριμένου quiz
+app.get('/api/quizzes/:id', (req, res) => {
+    try {
+        const quiz = quizzes.find(q => q.id === parseInt(req.params.id));
+        if (!quiz) {
+            return res.status(404).json({ error: 'Το quiz δεν βρέθηκε' });
+        }
+        res.json(quiz);
+    } catch (error) {
+        console.error('Error fetching quiz:', error);
+        res.status(500).json({ error: 'Σφάλμα κατά την ανάκτηση του quiz' });
+    }
+});
+
+// Υποβολή απαντήσεων quiz
+app.post('/api/quiz-submissions', (req, res) => {
+    try {
+        const { quizId, studentId, answers } = req.body;
+        
+        const quiz = quizzes.find(q => q.id === quizId);
+        if (!quiz) {
+            return res.status(404).json({ error: 'Το quiz δεν βρέθηκε' });
+        }
+
+        // Έλεγχος αν έχει ήδη υποβληθεί
+        const existingSubmission = quizSubmissions.find(
+            s => s.quizId === quizId && s.studentId === studentId
+        );
+        if (existingSubmission) {
+            return res.status(400).json({ error: 'Έχετε ήδη υποβάλει απαντήσεις για αυτό το quiz' });
+        }
+
+        // Υπολογισμός βαθμολογίας
+        let score = 0;
+        const gradedAnswers = answers.map((answer, index) => {
+            const isCorrect = answer === quiz.questions[index].correctAnswer;
+            if (isCorrect) score++;
+            return { ...answer, isCorrect };
+        });
+
+        const submission = {
+            id: Date.now(),
+            quizId,
+            studentId,
+            answers: gradedAnswers,
+            score,
+            maxScore: quiz.questions.length,
+            submittedAt: new Date().toISOString()
+        };
+
+        quizSubmissions.push(submission);
+        saveData();
+        res.json(submission);
+    } catch (error) {
+        console.error('Error submitting quiz:', error);
+        res.status(500).json({ error: 'Σφάλμα κατά την υποβολή του quiz' });
+    }
+});
+
+// Get υποβολών ενός μαθητή
+app.get('/api/quiz-submissions/student/:studentId', (req, res) => {
+    try {
+        const submissions = quizSubmissions.filter(
+            s => s.studentId === parseInt(req.params.studentId)
+        );
+        res.json(submissions);
+    } catch (error) {
+        console.error('Error fetching submissions:', error);
+        res.status(500).json({ error: 'Σφάλμα κατά την ανάκτηση των υποβολών' });
+    }
+});
+
+// Get υποβολών ενός quiz
+app.get('/api/quiz-submissions/quiz/:quizId', (req, res) => {
+    try {
+        const submissions = quizSubmissions.filter(
+            s => s.quizId === parseInt(req.params.quizId)
+        );
+        res.json(submissions);
+    } catch (error) {
+        console.error('Error fetching submissions:', error);
+        res.status(500).json({ error: 'Σφάλμα κατά την ανάκτηση των υποβολών' });
+    }
+});
+
 // Χειρισμός σφαλμάτων
 app.use((err, req, res, next) => {
     console.error(err.stack);
@@ -405,6 +654,18 @@ app.use((err, req, res, next) => {
     message: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
 });
+
+// Βεβαιωθείτε ότι το data directory έχει τα σωστά permissions
+const dataDir = path.dirname(DATA_FILE);
+try {
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true, mode: 0o755 });
+  }
+  // Διορθώστε τα permissions αν χρειάζεται
+  fs.chmodSync(dataDir, 0o755);
+} catch (error) {
+  console.error('Error setting up data directory:', error);
+}
 
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {

@@ -1,0 +1,148 @@
+.announcement-management {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.announcement-form {
+    background: white;
+    border-radius: 8px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.announcement-form h3 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    color: #202124;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.announcement-title-input {
+    width: 100%;
+    padding: 0.8rem;
+    font-size: 1.1rem;
+    border: 1px solid #dadce0;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.announcement-content-input {
+    width: 100%;
+    min-height: 150px;
+    padding: 0.8rem;
+    font-size: 1rem;
+    border: 1px solid #dadce0;
+    border-radius: 4px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.submit-announcement-btn {
+    background: #1a73e8;
+    color: white;
+    padding: 0.8rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    width: 100%;
+}
+
+.submit-announcement-btn:hover:not(:disabled) {
+    background: #1557b0;
+}
+
+.submit-announcement-btn:disabled {
+    background: #dadce0;
+    cursor: not-allowed;
+}
+
+.announcements-list {
+    margin-top: 2rem;
+}
+
+.announcements-list h3 {
+    color: #202124;
+    margin-bottom: 1.5rem;
+}
+
+.announcement-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.announcement-card h4 {
+    margin: 0 0 1rem 0;
+    color: #202124;
+}
+
+.announcement-card p {
+    margin: 0 0 1rem 0;
+    color: #5f6368;
+    line-height: 1.5;
+}
+
+.announcement-metadata {
+    display: flex;
+    gap: 0.5rem;
+    color: #5f6368;
+    font-size: 0.9rem;
+}
+
+.error-message,
+.success-message {
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.error-message {
+    background: #fce8e6;
+    color: #d93025;
+}
+
+.success-message {
+    background: #e6f4ea;
+    color: #1e8e3e;
+}
+
+.no-announcements {
+    text-align: center;
+    color: #5f6368;
+    padding: 2rem;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+}
+
+.content-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 2rem;
+    gap: 1rem;
+}
+
+.back-button {
+    background: transparent;
+    border: 1px solid #61dafb;
+    color: #61dafb;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.back-button:hover {
+    background: rgba(97, 218, 251, 0.1);
+}
+
+.content-header h3 {
+    margin: 0;
+} 

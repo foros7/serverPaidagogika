@@ -10,9 +10,28 @@ function Auth({ onLogin }) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  const validateForm = () => {
+    if (username.length < 3 || username.length > 20) {
+      setError('Το username πρέπει να είναι μεταξύ 3 και 20 χαρακτήρων');
+      return false;
+    }
+
+    if (!isLogin && password.length < 6) {
+      setError('Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες');
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    
+    if (!validateForm()) {
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -23,8 +42,10 @@ function Auth({ onLogin }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'Origin': 'https://p22095.netlify.app'
         },
+        credentials: 'include',
         mode: 'cors',
         body: JSON.stringify({
           username,
@@ -34,7 +55,7 @@ function Auth({ onLogin }) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 

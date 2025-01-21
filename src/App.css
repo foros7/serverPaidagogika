@@ -183,20 +183,19 @@ a:hover {
 .content-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
   margin-bottom: 2rem;
 }
 
 .back-button {
-  padding: 8px 16px;
-  font-size: 14px;
-  background-color: transparent;
+  background: transparent;
   border: 1px solid #61dafb;
   color: #61dafb;
+  padding: 0.5rem 1rem;
+  margin-right: 1rem;
 }
 
 .back-button:hover {
-  background-color: rgba(97, 218, 251, 0.1);
+  background: rgba(97, 218, 251, 0.1);
 }
 
 .nav-left {
@@ -747,4 +746,79 @@ button:active::after {
   width: 100%;
   max-width: 400px;
   margin: 1rem 0;
+}
+
+.instructor-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.instructor-options button {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.1rem;
+  transition: all 0.3s ease;
+}
+
+.instructor-options button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Προσθέστε responsive styles */
+@media (max-width: 768px) {
+  .instructor-options {
+    padding: 1rem;
+  }
+  
+  .instructor-options button {
+    padding: 1rem;
+  }
+}
+
+/* Προσθέστε στο υπάρχον CSS */
+.quiz-creation {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.quiz-creation h3 {
+  color: #61dafb;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+}
+
+.quiz-creation input[type="text"],
+.quiz-creation input[type="datetime-local"] {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.quiz-creation .question-box {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.quiz-creation .option-label {
+  color: white;
+}
+
+.quiz-creation .option-text {
+  color: white;
+}
+
+.quiz-creation button {
+  background: #61dafb;
+  color: #282c34;
+}
+
+.quiz-creation button:hover:not(:disabled) {
+  background: #4fa8c7;
 }
