@@ -2,8 +2,10 @@ services:
   - type: web
     name: lms-backend
     env: node
-    buildCommand: npm install
-    startCommand: node server.js
+    buildCommand: cd server && npm install
+    startCommand: cd server && node server.js
     envVars:
+      - key: NODE_ENV
+        value: production
       - key: PORT
         value: 10000 

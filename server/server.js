@@ -5,6 +5,8 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
+const { initDatabase, User, Announcement, Quiz, QuizSubmission, Material } = require('./database');
+const seedUsers = require('./seedUsers');
 
 const app = express();
 
@@ -45,13 +47,19 @@ app.use(express.json());
 
 // Αλλάξτε το DATA_FILE path για να χρησιμοποιεί μόνιμο φάκελο
 const DATA_FILE = process.env.NODE_ENV === 'production'
-  ? path.join('/data', 'data.json')
+  ? path.join(process.cwd(), 'data', 'data.json')
   : path.join(__dirname, 'data', 'data.json');
 
 // Δημιουργία του data directory αν δεν υπάρχει
 const dataDir = path.dirname(DATA_FILE);
-if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+try {
+    if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true, mode: 0o755 });
+    }
+    // Διορθώστε τα permissions αν χρειάζεται
+    fs.chmodSync(dataDir, 0o755);
+} catch (error) {
+    console.error('Error creating data directory:', error);
 }
 
 // Αρχικοποίηση μεταβλητών
@@ -78,14 +86,20 @@ const saveData = () => {
             quizSubmissions
         };
         
+        // Βεβαιωθείτε ότι ο φάκελος υπάρχει
+        if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
+        }
+        
         // Δημιουργία προσωρινού αρχείου
         const tempFile = `${DATA_FILE}.tmp`;
-        fs.writeFileSync(tempFile, JSON.stringify(data, null, 2));
+        fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), { mode: 0o644 });
         
         // Μετονομασία του προσωρινού αρχείου στο τελικό
         fs.renameSync(tempFile, DATA_FILE);
+        fs.chmodSync(DATA_FILE, 0o644);
         
-        console.log('Data saved successfully');
+        console.log('Data saved successfully to:', DATA_FILE);
     } catch (error) {
         console.error('Error saving data:', error);
         // Προσπάθεια επαναφοράς του προσωρινού αρχείου αν υπάρχει
@@ -104,10 +118,10 @@ const saveData = () => {
 const loadData = () => {
     try {
         if (fs.existsSync(DATA_FILE)) {
+            console.log('Loading data from:', DATA_FILE);
             const fileData = fs.readFileSync(DATA_FILE, 'utf8');
             const data = JSON.parse(fileData);
             
-            // Ενημέρωση των μεταβλητών με τα δεδομένα από το αρχείο
             users = data.users || [];
             announcements = data.announcements || [];
             tests = data.tests || [];
@@ -119,22 +133,37 @@ const loadData = () => {
             
             console.log('Data loaded successfully');
         } else {
-            // Δημιουργία του αρχείου με αρχικά δεδομένα αν δεν υπάρχει
+            console.log('No existing data file, creating new one at:', DATA_FILE);
             const initialData = {
-                users,
-                announcements,
-                tests,
-                discussions,
-                materials,
-                grades,
-                quizzes,
-                quizSubmissions
+                users: [],
+                announcements: [],
+                tests: [],
+                discussions: [],
+                materials: [],
+                grades: [],
+                quizzes: [],
+                quizSubmissions: []
             };
-            fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
+            
+            // Βεβαιωθείτε ότι ο φάκελος υπάρχει
+            if (!fs.existsSync(dataDir)) {
+                fs.mkdirSync(dataDir, { recursive: true });
+            }
+            
+            fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2), { mode: 0o644 });
             console.log('Initial data file created');
         }
     } catch (error) {
         console.error('Error loading data:', error);
+        // Δημιουργία κενών arrays σε περίπτωση σφάλματος
+        users = [];
+        announcements = [];
+        tests = [];
+        discussions = [];
+        materials = [];
+        grades = [];
+        quizzes = [];
+        quizSubmissions = [];
     }
 };
 
@@ -217,80 +246,21 @@ app.get('/api/files', (req, res) => {
 });
 
 // Authentication routes
-app.post('/api/signup', async (req, res) => {
-    try {
-        console.log('Signup request received:', { ...req.body, password: '[HIDDEN]' });
-        const { username, password, role } = req.body;
-        
-        // Βασικός έλεγχος
-        if (!username || !password || !role) {
-            return res.status(400).json({ error: 'Όλα τα πεδία είναι υποχρεωτικά' });
-        }
-
-        // Έλεγχος μήκους username
-        if (username.length < 3 || username.length > 20) {
-            return res.status(400).json({ error: 'Το username πρέπει να είναι μεταξύ 3 και 20 χαρακτήρες' });
-        }
-
-        // Έλεγχος για επιτρεπτούς χαρακτήρες στο username
-        const usernameRegex = /^[a-zA-Z0-9\u0370-\u03FF\u1F00-\u1FFF]+$/;
-        if (!usernameRegex.test(username)) {
-            return res.status(400).json({ 
-                error: 'Το username μπορεί να περιέχει μόνο γράμματα, αριθμούς και ελληνικούς χαρακτήρες' 
-            });
-        }
-
-        // Έλεγχος για διπλότυπο username
-        if (users.find(u => u.username === username)) {
-            return res.status(400).json({ error: 'Το username υπάρχει ήδη' });
-        }
-
-        // Έλεγχος μήκους password
-        if (password.length < 6) {
-            return res.status(400).json({ error: 'Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες' });
-        }
-
-        // Δημιουργία νέου χρήστη
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = {
-            id: Date.now(),
-            username,
-            password: hashedPassword,
-            role,
-            createdAt: new Date().toISOString()
-        };
-        
-        users.push(newUser);
-        saveData();
-
-        console.log('New user created:', { ...newUser, password: '[HIDDEN]' });
-        
-        // Αφαίρεση ευαίσθητων δεδομένων πριν την αποστολή
-        const userResponse = { 
-            id: newUser.id,
-            username: newUser.username,
-            role: newUser.role,
-            createdAt: newUser.createdAt
-        };
-        
-        res.json({ user: userResponse });
-    } catch (error) {
-        console.error('Signup error:', error);
-        res.status(500).json({ error: 'Σφάλμα κατά την εγγραφή' });
-    }
-});
-
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
-        const user = users.find(u => u.username === username);
+        
+        // Αναζήτηση χρήστη στη βάση
+        const user = await User.findOne({ 
+            where: { username }
+        });
         
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ error: 'Λάθος στοιχεία' });
         }
 
         // Αφαιρούμε το password πριν στείλουμε την απάντηση
-        const userResponse = { ...user };
+        const userResponse = user.toJSON();
         delete userResponse.password;
         
         res.json({ user: userResponse });
@@ -300,31 +270,66 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// Announcements routes
-app.post('/api/announcements', (req, res) => {
+// Signup route
+app.post('/api/signup', async (req, res) => {
     try {
-        const { text, author } = req.body;
-        const newAnnouncement = {
-            id: Date.now(), // Χρησιμοποιούμε timestamp για μοναδικό ID
-            text,
-            author,
-            date: new Date().toISOString()
-        };
-        announcements.push(newAnnouncement);
-        saveData(); // Προσθήκη αποθήκευσης
-        
-        console.log('New announcement:', newAnnouncement);
-        console.log('Total announcements:', announcements.length);
-        
-        res.json(newAnnouncement);
+        const { username, password, role } = req.body;
+
+        // Έλεγχος αν υπάρχει ήδη ο χρήστης
+        const existingUser = await User.findOne({ 
+            where: { username } 
+        });
+
+        if (existingUser) {
+            return res.status(400).json({ error: 'Το username χρησιμοποιείται ήδη' });
+        }
+
+        // Κρυπτογράφηση του password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Δημιουργία νέου χρήστη
+        const user = await User.create({
+            username,
+            password: hashedPassword,
+            role
+        });
+
+        // Αφαιρούμε το password πριν στείλουμε την απάντηση
+        const userResponse = user.toJSON();
+        delete userResponse.password;
+
+        res.status(201).json({ user: userResponse });
+    } catch (error) {
+        console.error('Signup error:', error);
+        res.status(500).json({ error: 'Σφάλμα κατά την εγγραφή' });
+    }
+});
+
+// Announcements routes
+app.post('/api/announcements', async (req, res) => {
+    try {
+        const announcement = await Announcement.create({
+            title: req.body.title,
+            content: req.body.content,
+            createdBy: req.body.createdBy
+        });
+        res.json(announcement);
     } catch (error) {
         console.error('Error creating announcement:', error);
         res.status(500).json({ error: 'Σφάλμα κατά τη δημιουργία της ανακοίνωσης' });
     }
 });
 
-app.get('/api/announcements', (req, res) => {
-    res.json(announcements);
+app.get('/api/announcements', async (req, res) => {
+    try {
+        const announcements = await Announcement.findAll({
+            order: [['createdAt', 'DESC']]
+        });
+        res.json(announcements);
+    } catch (error) {
+        console.error('Error fetching announcements:', error);
+        res.status(500).json({ error: 'Σφάλμα κατά την ανάκτηση των ανακοινώσεων' });
+    }
 });
 
 // Tests routes
@@ -655,19 +660,15 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Βεβαιωθείτε ότι το data directory έχει τα σωστά permissions
-const dataDir = path.dirname(DATA_FILE);
-try {
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true, mode: 0o755 });
-  }
-  // Διορθώστε τα permissions αν χρειάζεται
-  fs.chmodSync(dataDir, 0o755);
-} catch (error) {
-  console.error('Error setting up data directory:', error);
-}
-
 const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-}); 
+(async () => {
+    try {
+        await initDatabase();
+        await seedUsers();
+        app.listen(PORT, () => {
+            console.log(`Server is running on port ${PORT}`);
+        });
+    } catch (error) {
+        console.error('Failed to initialize database:', error);
+    }
+})(); 
