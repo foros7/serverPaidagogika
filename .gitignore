@@ -24,3 +24,8 @@ yarn-error.log*
 
 # Local Netlify folder
 .netlify
+
+# Στο server/.gitignore ή στο /.gitignore
+*.sqlite
+*.sqlite3
+database.sqlite
