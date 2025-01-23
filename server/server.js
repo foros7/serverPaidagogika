@@ -70,4 +70,46 @@ app.get('/api/quiz-submissions/user/:userId', async (req, res) => {
         console.error('Error fetching user submissions:', error);
         res.status(500).json({ error: 'Σφάλμα κατά την ανάκτηση των υποβολών' });
     }
+});
+
+// Grade routes
+app.get('/api/users/students', async (req, res) => {
+    try {
+        const students = await User.findAll({
+            where: { role: 'student' },
+            attributes: ['id', 'username'] // Εξαιρούμε το password
+        });
+        res.json(students);
+    } catch (error) {
+        console.error('Error fetching students:', error);
+        res.status(500).json({ error: 'Σφάλμα κατά την ανάκτηση των μαθητών' });
+    }
+});
+
+app.get('/api/grades', async (req, res) => {
+    try {
+        const grades = await Grade.findAll({
+            include: [User],
+            order: [['createdAt', 'DESC']]
+        });
+        res.json(grades);
+    } catch (error) {
+        console.error('Error fetching grades:', error);
+        res.status(500).json({ error: 'Σφάλμα κατά την ανάκτηση των βαθμών' });
+    }
+});
+
+app.post('/api/grades', async (req, res) => {
+    try {
+        const grade = await Grade.create({
+            UserId: req.body.userId,
+            subject: req.body.subject,
+            score: req.body.score,
+            comments: req.body.comments
+        });
+        res.json(grade);
+    } catch (error) {
+        console.error('Error creating grade:', error);
+        res.status(500).json({ error: 'Σφάλμα κατά την καταχώρηση του βαθμού' });
+    }
 }); 
