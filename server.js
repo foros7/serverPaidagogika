@@ -7,6 +7,8 @@ const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const { initDatabase, User, Announcement, Quiz, QuizSubmission, Material } = require('./database');
 const seedUsers = require('./seedUsers');
+const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
+const { storage } = require('./firebase');
 
 const app = express();
 
@@ -187,52 +189,46 @@ process.on('SIGTERM', () => {
 });
 
 // Ρύθμιση του multer για αποθήκευση αρχείων
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, uploadsDir);
-    },
-    filename: function (req, file, cb) {
-        // Προσθέτουμε timestamp για μοναδικά ονόματα
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + '-' + file.originalname);
-    }
-});
-
-const upload = multer({ 
-    storage: storage,
+const upload = multer({
+    storage: multer.memoryStorage(),
     limits: {
-        fileSize: 5 * 1024 * 1024 // όριο 5MB
+        fileSize: 5 * 1024 * 1024 // 5MB limit
     }
 });
 
 // Διαδρομή για την αποθήκευση των αρχείων
-app.post('/api/upload', upload.single('file'), (req, res) => {
+app.post('/api/upload', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'Δεν βρέθηκε αρχείο' });
         }
 
-        // Δημιουργία του URL με βάση το περιβάλλον
-        const baseUrl = process.env.NODE_ENV === 'production'
-            ? 'https://lms-backend-9r0g.onrender.com'
-            : `http://localhost:${process.env.PORT || 5001}`;
+        // Create a unique filename
+        const timestamp = Date.now();
+        const filename = `${timestamp}-${req.file.originalname}`;
+        
+        // Create a reference to Firebase Storage
+        const storageRef = ref(storage, `files/${filename}`);
+        
+        // Upload the file to Firebase
+        const snapshot = await uploadBytes(storageRef, req.file.buffer);
+        
+        // Get the download URL
+        const downloadURL = await getDownloadURL(snapshot.ref);
 
         const fileData = {
-            filename: req.file.filename,
+            filename: filename,
             originalname: req.file.originalname,
             size: req.file.size,
             uploadDate: new Date().toISOString(),
-            url: `${baseUrl}/files/${req.file.filename}`
+            url: downloadURL
         };
 
-        // Προσθήκη στη λίστα materials
+        // Save to your database
         materials.push(fileData);
-        saveData(); // Προσθήκη αποθήκευσης
+        saveData();
 
-        console.log('File uploaded:', fileData);
-        console.log('Upload directory:', uploadsDir);
-        console.log('File path:', path.join(uploadsDir, req.file.filename));
-
+        console.log('File uploaded to Firebase:', fileData);
         res.json(fileData);
     } catch (error) {
         console.error('Upload error:', error);
@@ -368,26 +364,26 @@ app.get('/api/discussions', (req, res) => {
 });
 
 // Διαγραφή αρχείου
-app.delete('/api/files/:filename', (req, res) => {
-  const filePath = path.join(uploadsDir, req.params.filename);
-  const filename = req.params.filename;
-  
-  try {
-    // Διαγραφή από το filesystem
-    fs.unlinkSync(filePath);
-    
-    // Διαγραφή από τη λίστα materials
-    const index = materials.findIndex(m => m.filename === filename);
-    if (index !== -1) {
-      materials.splice(index, 1);
-      saveData(); // Προσθήκη αποθήκευσης
+app.delete('/api/files/:filename', async (req, res) => {
+    try {
+        const filename = req.params.filename;
+        
+        // Delete from Firebase Storage
+        const fileRef = ref(storage, `files/${filename}`);
+        await deleteObject(fileRef);
+        
+        // Remove from materials array
+        const index = materials.findIndex(m => m.filename === filename);
+        if (index !== -1) {
+            materials.splice(index, 1);
+            saveData();
+        }
+        
+        res.json({ message: 'Το αρχείο διαγράφηκε επιτυχώς' });
+    } catch (error) {
+        console.error('File deletion error:', error);
+        res.status(500).json({ error: 'Σφάλμα κατά τη διαγραφή του αρχείου' });
     }
-    
-    res.json({ message: 'Το αρχείο διαγράφηκε επιτυχώς' });
-  } catch (err) {
-    console.error('File deletion error:', err);
-    res.status(500).json({ error: 'Σφάλμα κατά τη διαγραφή του αρχείου' });
-  }
 });
 
 // Διαγραφή ανακοίνωσης
