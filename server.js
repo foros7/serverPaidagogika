@@ -74,7 +74,7 @@ let quizzes = [];
 let quizSubmissions = [];
 
 // Βελτιωμένη συνάρτηση για αποθήκευση δεδομένων
-const saveData = () => {
+const saveData = async () => {
     try {
         const data = {
             users,
@@ -87,31 +87,28 @@ const saveData = () => {
             quizSubmissions
         };
         
-        // Βεβαιωθείτε ότι ο φάκελος υπάρχει
+        console.log('Saving data:', data);
+        
+        // Ensure the directory exists
         if (!fs.existsSync(dataDir)) {
             fs.mkdirSync(dataDir, { recursive: true });
         }
         
-        // Δημιουργία προσωρινού αρχείου
+        // Write to a temporary file first
         const tempFile = `${DATA_FILE}.tmp`;
-        fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), { mode: 0o644 });
+        fs.writeFileSync(tempFile, JSON.stringify(data, null, 2));
         
-        // Μετονομασία του προσωρινού αρχείου στο τελικό
+        // Rename the temporary file to the actual file
         fs.renameSync(tempFile, DATA_FILE);
-        fs.chmodSync(DATA_FILE, 0o644);
         
         console.log('Data saved successfully to:', DATA_FILE);
+        
+        // Verify the save by reading it back
+        const savedData = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+        console.log('Verified saved materials:', savedData.materials);
     } catch (error) {
         console.error('Error saving data:', error);
-        // Προσπάθεια επαναφοράς του προσωρινού αρχείου αν υπάρχει
-        const tempFile = `${DATA_FILE}.tmp`;
-        if (fs.existsSync(tempFile)) {
-            try {
-                fs.renameSync(tempFile, DATA_FILE);
-            } catch (e) {
-                console.error('Error recovering data file:', e);
-            }
-        }
+        throw error;
     }
 };
 
@@ -123,48 +120,19 @@ const loadData = () => {
             const fileData = fs.readFileSync(DATA_FILE, 'utf8');
             const data = JSON.parse(fileData);
             
-            users = data.users || [];
-            announcements = data.announcements || [];
-            tests = data.tests || [];
-            discussions = data.discussions || [];
             materials = data.materials || [];
-            grades = data.grades || [];
-            quizzes = data.quizzes || [];
-            quizSubmissions = data.quizSubmissions || [];
+            console.log('Loaded materials:', materials);
+            
+            // Load other data...
             
             console.log('Data loaded successfully');
         } else {
-            console.log('No existing data file, creating new one at:', DATA_FILE);
-            const initialData = {
-                users: [],
-                announcements: [],
-                tests: [],
-                discussions: [],
-                materials: [],
-                grades: [],
-                quizzes: [],
-                quizSubmissions: []
-            };
-            
-            // Βεβαιωθείτε ότι ο φάκελος υπάρχει
-            if (!fs.existsSync(dataDir)) {
-                fs.mkdirSync(dataDir, { recursive: true });
-            }
-            
-            fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2), { mode: 0o644 });
-            console.log('Initial data file created');
+            console.log('No existing data file, initializing empty arrays');
+            materials = [];
         }
     } catch (error) {
         console.error('Error loading data:', error);
-        // Δημιουργία κενών arrays σε περίπτωση σφάλματος
-        users = [];
-        announcements = [];
-        tests = [];
-        discussions = [];
         materials = [];
-        grades = [];
-        quizzes = [];
-        quizSubmissions = [];
     }
 };
 
@@ -209,16 +177,13 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
             size: req.file.size
         });
 
-        // Create a unique filename with timestamp and original extension
         const fileExtension = path.extname(req.file.originalname);
         const timestamp = Date.now();
         const filename = `uploads/${timestamp}${fileExtension}`;
         
         try {
-            // Create a reference with the full path
             const storageRef = ref(storage, filename);
             
-            // Upload with metadata
             const metadata = {
                 contentType: req.file.mimetype,
                 customMetadata: {
@@ -228,11 +193,6 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
             
             console.log('Attempting Firebase upload to:', filename);
             
-            // Ensure we have the file buffer
-            if (!req.file.buffer) {
-                throw new Error('No file buffer available');
-            }
-
             const snapshot = await uploadBytes(storageRef, req.file.buffer, metadata);
             console.log('File uploaded successfully to Firebase');
             
@@ -248,29 +208,21 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
                 contentType: req.file.mimetype
             };
 
-            // Save to your database
+            // Save to materials array and log it
             materials.push(fileData);
             await saveData();
+            console.log('Updated materials array:', materials);
 
-            console.log('File data saved to database');
             res.json(fileData);
         } catch (uploadError) {
-            console.error('Firebase upload error details:', {
-                code: uploadError.code,
-                message: uploadError.message,
-                serverResponse: uploadError.customData?.serverResponse,
-                name: uploadError.name,
-                stack: uploadError.stack
-            });
+            console.error('Firebase upload error details:', uploadError);
             throw uploadError;
         }
     } catch (error) {
         console.error('Upload error:', error);
         res.status(500).json({ 
             error: 'Σφάλμα κατά το ανέβασμα του αρχείου',
-            details: error.message,
-            code: error.code,
-            serverResponse: error.customData?.serverResponse
+            details: error.message
         });
     }
 });
@@ -279,18 +231,13 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 app.get('/api/files', async (req, res) => {
     try {
         console.log('Getting files list...');
-        console.log('Current materials:', materials);
+        console.log('Raw materials array:', materials);
         
-        // Make sure we're returning the full material objects
-        const materialsWithUrls = materials.map(material => ({
-            ...material,
-            downloadURL: material.url,
-            createdAt: material.uploadDate,
-            filename: material.originalname
-        }));
+        // Load data from file to ensure we have the latest
+        loadData();
+        console.log('Materials after loadData:', materials);
         
-        console.log('Sending materials:', materialsWithUrls);
-        res.json(materialsWithUrls);
+        res.json(materials);
     } catch (error) {
         console.error('Error getting files:', error);
         res.status(500).json({ 
