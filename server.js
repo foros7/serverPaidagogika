@@ -215,20 +215,20 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
         const timestamp = Date.now();
         const filename = `${timestamp}${fileExtension}`;
         
-        // Create a reference to Firebase Storage with the full path
-        const storageRef = ref(storage, `uploads/${filename}`);
-        
         try {
-            // Create a Buffer from the file
-            const buffer = req.file.buffer;
+            // Create a reference directly to the root
+            const storageRef = ref(storage, filename);
             
             // Upload with metadata
             const metadata = {
                 contentType: req.file.mimetype,
+                customMetadata: {
+                    originalname: req.file.originalname
+                }
             };
             
-            console.log('Attempting Firebase upload...');
-            const snapshot = await uploadBytes(storageRef, buffer, metadata);
+            console.log('Attempting Firebase upload to:', filename);
+            const snapshot = await uploadBytes(storageRef, req.file.buffer, metadata);
             console.log('File uploaded successfully to Firebase');
             
             // Get the download URL
@@ -254,8 +254,9 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
             console.error('Firebase upload error details:', {
                 code: uploadError.code,
                 message: uploadError.message,
-                serverResponse: uploadError.serverResponse,
-                name: uploadError.name
+                serverResponse: uploadError.customData?.serverResponse,
+                name: uploadError.name,
+                stack: uploadError.stack
             });
             throw uploadError;
         }
@@ -264,7 +265,8 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
         res.status(500).json({ 
             error: 'Σφάλμα κατά το ανέβασμα του αρχείου',
             details: error.message,
-            code: error.code
+            code: error.code,
+            serverResponse: error.customData?.serverResponse
         });
     }
 });
