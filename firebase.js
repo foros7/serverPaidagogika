@@ -5,7 +5,7 @@ const firebaseConfig = {
     apiKey: "AIzaSyCX78GmGuiVPvvV1FFQgeKZedJ0_xm8v1I",
     authDomain: "p22095-ergasia.firebaseapp.com",
     projectId: "p22095-ergasia",
-    storageBucket: "p22095-ergasia.firebasestorage.app",
+    storageBucket: "gs://p22095-ergasia.firebasestorage.app",
     messagingSenderId: "497319914024",
     appId: "1:497319914024:web:916eb6123b1cb4d016631d",
     measurementId: "G-4C0GYEL0BR"
@@ -16,8 +16,8 @@ try {
     const app = initializeApp(firebaseConfig);
     const storage = getStorage(app);
 
-    // Test storage access
-    const storageRef = ref(storage);
+    // Test storage access with a specific path
+    const storageRef = ref(storage, 'files/');
     listAll(storageRef).then((result) => {
         console.log('Storage access successful:', result);
     }).catch((error) => {
