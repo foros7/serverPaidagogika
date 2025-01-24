@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 import Auth from './components/Auth';
 import QuizCreation from './components/QuizCreation';
@@ -17,6 +17,32 @@ function App() {
   const [announcements, setAnnouncements] = useState([]);
   const [discussions, setDiscussions] = useState([]);
   const [grades, setGrades] = useState([]);
+
+  useEffect(() => {
+    if (user) {
+      fetchGrades();
+    }
+  }, [user]);
+
+  const fetchGrades = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/grades`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch grades');
+      }
+
+      const data = await response.json();
+      setGrades(data);
+    } catch (error) {
+      console.error('Error fetching grades:', error);
+    }
+  };
 
   const handleLogin = (userData) => {
     setUser(userData);
@@ -127,10 +153,35 @@ function App() {
       }
 
       const data = await response.json();
-      setGrades([...grades, data]);
+      setGrades(prevGrades => [...prevGrades, data]);
     } catch (error) {
       console.error('Error:', error);
     }
+  };
+
+  const renderGrades = () => {
+    if (user.role === 'student') {
+      const studentGrades = grades.filter(grade => grade.studentId === user.id);
+      return (
+        <div className="grades-section">
+          <h3>Οι Βαθμοί μου</h3>
+          {studentGrades.length > 0 ? (
+            <div className="grades-list">
+              {studentGrades.map((grade, index) => (
+                <div key={index} className="grade-item">
+                  <span>Μάθημα: {grade.subject}</span>
+                  <span>Βαθμός: {grade.score}</span>
+                  <span>Ημερομηνία: {new Date(grade.submittedAt).toLocaleDateString()}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p>Δεν υπάρχουν καταχωρημένοι βαθμοί.</p>
+          )}
+        </div>
+      );
+    }
+    return null;
   };
 
   const renderContent = () => {
@@ -200,6 +251,27 @@ function App() {
 
     if (activeComponent === 'quizzes' && user.role === 'student') {
       return <StudentQuizzes user={user} />;
+    }
+
+    if (activeComponent === 'grades') {
+      return (
+        <div className="content-section">
+          <div className="content-header">
+            <button className="back-button" onClick={() => setActiveComponent('dashboard')}>
+              ← Επιστροφή
+            </button>
+            <h3>Βαθμοί</h3>
+          </div>
+          {user.role === 'instructor' ? (
+            <div className="grades-management">
+              <h3>Καταχώρηση Βαθμών</h3>
+              {/* Add your grade submission form here */}
+            </div>
+          ) : (
+            renderGrades()
+          )}
+        </div>
+      );
     }
 
     return (

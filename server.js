@@ -481,60 +481,38 @@ app.get('/api/files/:filename/check', (req, res) => {
 });
 
 // Προσθέστε τα νέα routes για τους βαθμούς
-app.post('/api/grades', (req, res) => {
+app.post('/api/grades', async (req, res) => {
     try {
-        const { studentId, subject, grade, instructor } = req.body;
+        const { studentId, subject, score, submittedBy } = req.body;
+        const newGrade = {
+            id: Date.now(),
+            studentId,
+            subject,
+            score,
+            submittedBy,
+            submittedAt: new Date().toISOString()
+        };
         
-        // Έλεγχος εγκυρότητας βαθμού
-        if (grade < 0 || grade > 20) {
-            return res.status(400).json({ error: 'Ο βαθμός πρέπει να είναι μεταξύ 0 και 20' });
-        }
-
-        // Έλεγχος αν υπάρχει ήδη βαθμός για αυτό το μάθημα
-        const existingGradeIndex = grades.findIndex(g => 
-            g.studentId === studentId && g.subject === subject
-        );
-
-        if (existingGradeIndex !== -1) {
-            // Ενημέρωση υπάρχοντος βαθμού
-            grades[existingGradeIndex] = {
-                ...grades[existingGradeIndex],
-                grade,
-                instructor,
-                date: new Date().toISOString()
-            };
-            console.log('Grade updated:', grades[existingGradeIndex]);
-            saveData(); // Προσθήκη αποθήκευσης
-            res.json(grades[existingGradeIndex]);
-        } else {
-            // Προσθήκη νέου βαθμού
-            const newGrade = {
-                id: Date.now(),
-                studentId,
-                subject,
-                grade,
-                instructor,
-                date: new Date().toISOString()
-            };
-            grades.push(newGrade);
-            console.log('New grade added:', newGrade);
-            saveData(); // Προσθήκη αποθήκευσης
-            res.json(newGrade);
-        }
+        grades.push(newGrade);
+        await saveData();
+        
+        res.json(newGrade);
     } catch (error) {
-        console.error('Error handling grade:', error);
-        res.status(500).json({ error: 'Σφάλμα κατά την διαχείριση βαθμού' });
+        console.error('Error submitting grade:', error);
+        res.status(500).json({ error: 'Σφάλμα κατά την καταχώρηση του βαθμού' });
     }
 });
 
 // Get όλων των βαθμών ενός μαθητή
-app.get('/api/grades/:studentId', (req, res) => {
+app.get('/api/grades/student/:studentId', async (req, res) => {
     try {
-        const studentGrades = grades.filter(g => g.studentId === parseInt(req.params.studentId));
+        const studentGrades = grades.filter(grade => 
+            grade.studentId === parseInt(req.params.studentId)
+        );
         res.json(studentGrades);
     } catch (error) {
-        console.error('Error fetching grades:', error);
-        res.status(500).json({ error: 'Σφάλμα κατά την ανάκτηση βαθμών' });
+        console.error('Error fetching student grades:', error);
+        res.status(500).json({ error: 'Σφάλμα κατά την ανάκτηση των βαθμών του μαθητή' });
     }
 });
 
@@ -709,6 +687,16 @@ app.get('/api/test-firebase', async (req, res) => {
             error: 'Firebase test failed',
             details: error.message
         });
+    }
+});
+
+// Add these routes for grades
+app.get('/api/grades', async (req, res) => {
+    try {
+        res.json(grades);
+    } catch (error) {
+        console.error('Error fetching grades:', error);
+        res.status(500).json({ error: 'Σφάλμα κατά την ανάκτηση των βαθμών' });
     }
 });
 
