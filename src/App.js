@@ -34,8 +34,11 @@ function App() {
       const response = await fetch(`${API_URL}/api/grades`, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Origin': 'https://p22095.netlify.app'
+        },
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -51,18 +54,26 @@ function App() {
 
   const fetchMaterials = async () => {
     try {
-      console.log('Fetching materials...');
-      const response = await fetch(`${API_URL}/api/files`);
+      const response = await fetch(`${API_URL}/api/files`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Origin': 'https://p22095.netlify.app'
+        },
+        credentials: 'include'
+      });
+
       if (!response.ok) {
         throw new Error('Failed to fetch materials');
       }
+
       const data = await response.json();
       console.log('Fetched materials:', data);
       
-      // Transform the data to match the expected format
       const transformedData = data.map(material => ({
         ...material,
-        url: material.url || material.downloadURL, // Handle both possible URL fields
+        url: material.url || material.downloadURL,
         uploadDate: material.uploadDate || material.createdAt || new Date().toISOString(),
         originalname: material.originalname || material.filename,
         size: material.size || 0

@@ -13,24 +13,29 @@ const { storage } = require('./firebase');
 const app = express();
 
 // Update CORS configuration
-app.use(cors({
-  origin: ['https://p22095.netlify.app', 'http://localhost:3000'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
-}));
+const corsOptions = {
+    origin: ['https://p22095.netlify.app', 'http://localhost:3000'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+    credentials: true,
+    optionsSuccessStatus: 200
+};
 
-// Update headers middleware
+app.use(cors(corsOptions));
+
+// Remove the old headers middleware and replace with this:
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin);
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  next();
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, Accept');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    
+    // Handle preflight
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+    
+    next();
 });
 
 // Δημιουργία του uploads directory
@@ -232,13 +237,14 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 // Διαδρομή για την προβολή των αρχείων
 app.get('/api/files', async (req, res) => {
     try {
+        // Add CORS headers explicitly
+        res.header('Access-Control-Allow-Origin', 'https://p22095.netlify.app');
+        res.header('Access-Control-Allow-Credentials', 'true');
+        
         console.log('Getting files list...');
         console.log('Raw materials array:', materials);
-        
-        // Load data from file to ensure we have the latest
         loadData();
         console.log('Materials after loadData:', materials);
-        
         res.json(materials);
     } catch (error) {
         console.error('Error getting files:', error);
@@ -659,9 +665,14 @@ app.get('/api/test-firebase', async (req, res) => {
     }
 });
 
-// Add these routes for grades
+// Update the grades endpoint to include CORS headers
 app.get('/api/grades', async (req, res) => {
     try {
+        // Add CORS headers explicitly
+        res.header('Access-Control-Allow-Origin', 'https://p22095.netlify.app');
+        res.header('Access-Control-Allow-Credentials', 'true');
+        
+        console.log('Fetching grades...');
         res.json(grades);
     } catch (error) {
         console.error('Error fetching grades:', error);
