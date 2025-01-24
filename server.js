@@ -227,10 +227,15 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
             };
             
             console.log('Attempting Firebase upload to:', filename);
+            
+            // Ensure we have the file buffer
+            if (!req.file.buffer) {
+                throw new Error('No file buffer available');
+            }
+
             const snapshot = await uploadBytes(storageRef, req.file.buffer, metadata);
             console.log('File uploaded successfully to Firebase');
             
-            // Get the download URL
             const downloadURL = await getDownloadURL(snapshot.ref);
             console.log('Download URL obtained:', downloadURL);
 
@@ -245,7 +250,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 
             // Save to your database
             materials.push(fileData);
-            saveData();
+            await saveData();
 
             console.log('File data saved to database');
             res.json(fileData);
@@ -688,6 +693,23 @@ app.use((err, req, res, next) => {
     error: 'Κάτι πήγε στραβά!',
     message: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
+});
+
+// Add this route to test Firebase connection
+app.get('/api/test-firebase', async (req, res) => {
+    try {
+        const testRef = ref(storage, 'test.txt');
+        const testBuffer = Buffer.from('test');
+        await uploadBytes(testRef, testBuffer);
+        const url = await getDownloadURL(testRef);
+        res.json({ status: 'success', url });
+    } catch (error) {
+        console.error('Firebase test error:', error);
+        res.status(500).json({ 
+            error: 'Firebase test failed',
+            details: error.message
+        });
+    }
 });
 
 const PORT = process.env.PORT || 5001;

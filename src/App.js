@@ -212,7 +212,31 @@ function App() {
         {activeComponent === 'materials' && (
           <div className="upload-section">
             <h3>Ανέβασμα Εκπαιδευτικού Υλικού</h3>
-            <form onSubmit={handleFileUpload}>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (selectedFile) {
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+                
+                fetch(`${API_URL}/api/upload`, {
+                  method: 'POST',
+                  body: formData
+                })
+                .then(response => {
+                  if (!response.ok) throw new Error('Upload failed');
+                  return response.json();
+                })
+                .then(data => {
+                  setMaterials([...materials, data]);
+                  setSelectedFile(null);
+                  setUploadError('');
+                })
+                .catch(error => {
+                  console.error('Upload error:', error);
+                  setUploadError('Failed to upload file');
+                });
+              }
+            }}>
               <input
                 type="file"
                 onChange={handleFileSelect}
@@ -228,11 +252,11 @@ function App() {
               {materials.map((material, index) => (
                 <div key={index} className="material-item">
                   <a href={material.url} target="_blank" rel="noopener noreferrer">
-                    {material.filename}
+                    {material.originalname}
                   </a>
                   <div className="metadata">
-                    <span>Ανέβηκε από: {material.uploadedBy}</span>
-                    <span>Ημερομηνία: {new Date(material.uploadedAt).toLocaleDateString()}</span>
+                    <span>Μέγεθος: {(material.size / 1024).toFixed(2)} KB</span>
+                    <span>Ημερομηνία: {new Date(material.uploadDate).toLocaleDateString()}</span>
                   </div>
                 </div>
               ))}
