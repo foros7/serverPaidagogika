@@ -5,7 +5,7 @@ import QuizCreation from './components/QuizCreation';
 import AnnouncementManagement from './components/AnnouncementManagement';
 import StudentQuizzes from './components/StudentQuizzes';
 
-const API_URL = process.env.REACT_APP_API_URL;
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -27,30 +27,29 @@ function App() {
     setActiveComponent('dashboard');
   };
 
-  const handleFileUpload = async (e) => {
-    e.preventDefault();
-    if (!selectedFile) return;
-
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-    formData.append('uploadedBy', user.username);
-
+  const handleFileUpload = async (file) => {
     try {
+      const formData = new FormData();
+      formData.append('file', file);
+
       const response = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
-        body: formData
+        body: formData,
+        // Remove credentials if not needed
+        // credentials: 'include',
       });
 
       if (!response.ok) {
-        throw new Error('Σφάλμα κατά το ανέβασμα του αρχείου');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
       }
 
       const data = await response.json();
-      setMaterials([...materials, data]);
-      setSelectedFile(null);
-      setUploadProgress(0);
+      console.log('File uploaded successfully:', data);
+      return data;
     } catch (error) {
-      setUploadError(error.message);
+      console.error('Upload error:', error);
+      throw error;
     }
   };
 
