@@ -1,5 +1,5 @@
 const { initializeApp } = require('firebase/app');
-const { getStorage, connectStorageEmulator, ref, listAll } = require('firebase/storage');
+const { getStorage, ref, uploadBytes, getDownloadURL } = require('firebase/storage');
 
 const firebaseConfig = {
     apiKey: "AIzaSyCX78GmGuiVPvvV1FFQgeKZedJ0_xm8v1I",
@@ -19,7 +19,12 @@ try {
     // Remove the test access for now
     console.log('Firebase Storage initialized successfully');
 
-    module.exports = { storage };
+    module.exports = { 
+        storage,
+        ref,
+        uploadBytes,
+        getDownloadURL
+    };
 } catch (error) {
     console.error('Firebase initialization error:', error);
     throw error;

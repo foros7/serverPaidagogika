@@ -203,36 +203,69 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
             return res.status(400).json({ error: 'Δεν βρέθηκε αρχείο' });
         }
 
-        // Create a unique filename
-        const timestamp = Date.now();
-        const filename = `${timestamp}-${req.file.originalname}`;
-        
-        // Create a reference to Firebase Storage
-        const storageRef = ref(storage, `files/${filename}`);
-        
-        // Upload the file to Firebase
-        const snapshot = await uploadBytes(storageRef, req.file.buffer);
-        
-        // Get the download URL
-        const downloadURL = await getDownloadURL(snapshot.ref);
-
-        const fileData = {
-            filename: filename,
+        console.log('Starting file upload to Firebase...');
+        console.log('File details:', {
             originalname: req.file.originalname,
-            size: req.file.size,
-            uploadDate: new Date().toISOString(),
-            url: downloadURL
-        };
+            mimetype: req.file.mimetype,
+            size: req.file.size
+        });
 
-        // Save to your database
-        materials.push(fileData);
-        saveData();
+        // Create a unique filename with timestamp and original extension
+        const fileExtension = path.extname(req.file.originalname);
+        const timestamp = Date.now();
+        const filename = `${timestamp}${fileExtension}`;
+        
+        // Create a reference to Firebase Storage with the full path
+        const storageRef = ref(storage, `uploads/${filename}`);
+        
+        try {
+            // Create a Buffer from the file
+            const buffer = req.file.buffer;
+            
+            // Upload with metadata
+            const metadata = {
+                contentType: req.file.mimetype,
+            };
+            
+            console.log('Attempting Firebase upload...');
+            const snapshot = await uploadBytes(storageRef, buffer, metadata);
+            console.log('File uploaded successfully to Firebase');
+            
+            // Get the download URL
+            const downloadURL = await getDownloadURL(snapshot.ref);
+            console.log('Download URL obtained:', downloadURL);
 
-        console.log('File uploaded to Firebase:', fileData);
-        res.json(fileData);
+            const fileData = {
+                filename: filename,
+                originalname: req.file.originalname,
+                size: req.file.size,
+                uploadDate: new Date().toISOString(),
+                url: downloadURL,
+                contentType: req.file.mimetype
+            };
+
+            // Save to your database
+            materials.push(fileData);
+            saveData();
+
+            console.log('File data saved to database');
+            res.json(fileData);
+        } catch (uploadError) {
+            console.error('Firebase upload error details:', {
+                code: uploadError.code,
+                message: uploadError.message,
+                serverResponse: uploadError.serverResponse,
+                name: uploadError.name
+            });
+            throw uploadError;
+        }
     } catch (error) {
         console.error('Upload error:', error);
-        res.status(500).json({ error: 'Σφάλμα κατά το ανέβασμα του αρχείου' });
+        res.status(500).json({ 
+            error: 'Σφάλμα κατά το ανέβασμα του αρχείου',
+            details: error.message,
+            code: error.code
+        });
     }
 });
 
