@@ -7,7 +7,7 @@ const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const { initDatabase, User, Announcement, Quiz, QuizSubmission, Material } = require('./database');
 const seedUsers = require('./seedUsers');
-const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
+const { ref, uploadBytes, getDownloadURL, listAll } = require('firebase/storage');
 const { storage } = require('./firebase');
 
 const app = express();
@@ -237,17 +237,43 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 // Διαδρομή για την προβολή των αρχείων
 app.get('/api/files', async (req, res) => {
     try {
-        // Add CORS headers explicitly
-        res.header('Access-Control-Allow-Origin', 'https://p22095.netlify.app');
-        res.header('Access-Control-Allow-Credentials', 'true');
+        console.log('Fetching files from Firebase...');
         
-        console.log('Getting files list...');
-        console.log('Raw materials array:', materials);
-        loadData();
-        console.log('Materials after loadData:', materials);
-        res.json(materials);
+        // Create reference to uploads folder
+        const uploadsRef = ref(storage, 'uploads');
+        
+        // List all files in uploads folder
+        const listResult = await listAll(uploadsRef);
+        
+        // Get details for each file
+        const filesPromises = listResult.items.map(async (itemRef) => {
+            try {
+                const url = await getDownloadURL(itemRef);
+                const filename = itemRef.name;
+                // Extract original name from metadata if available
+                const originalname = filename.split('/').pop(); // Remove path
+                
+                return {
+                    filename,
+                    originalname,
+                    url,
+                    uploadDate: new Date(parseInt(filename.split('/')[1])).toISOString(),
+                    size: 0, // Firebase doesn't provide size in metadata by default
+                    contentType: 'application/octet-stream'
+                };
+            } catch (error) {
+                console.error(`Error getting details for file ${itemRef.name}:`, error);
+                return null;
+            }
+        });
+
+        // Wait for all file details to be fetched
+        const files = (await Promise.all(filesPromises)).filter(file => file !== null);
+        
+        console.log('Fetched files from Firebase:', files);
+        res.json(files);
     } catch (error) {
-        console.error('Error getting files:', error);
+        console.error('Error listing files from Firebase:', error);
         res.status(500).json({ 
             error: 'Error fetching files',
             details: error.message 
