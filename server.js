@@ -212,10 +212,10 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
         // Create a unique filename with timestamp and original extension
         const fileExtension = path.extname(req.file.originalname);
         const timestamp = Date.now();
-        const filename = `${timestamp}${fileExtension}`;
+        const filename = `uploads/${timestamp}${fileExtension}`;
         
         try {
-            // Create a reference directly to the root
+            // Create a reference with the full path
             const storageRef = ref(storage, filename);
             
             // Upload with metadata
