@@ -276,8 +276,28 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 });
 
 // Διαδρομή για την προβολή των αρχείων
-app.get('/api/files', (req, res) => {
-    res.json(materials);
+app.get('/api/files', async (req, res) => {
+    try {
+        console.log('Getting files list...');
+        console.log('Current materials:', materials);
+        
+        // Make sure we're returning the full material objects
+        const materialsWithUrls = materials.map(material => ({
+            ...material,
+            downloadURL: material.url,
+            createdAt: material.uploadDate,
+            filename: material.originalname
+        }));
+        
+        console.log('Sending materials:', materialsWithUrls);
+        res.json(materialsWithUrls);
+    } catch (error) {
+        console.error('Error getting files:', error);
+        res.status(500).json({ 
+            error: 'Error fetching files',
+            details: error.message 
+        });
+    }
 });
 
 // Authentication routes

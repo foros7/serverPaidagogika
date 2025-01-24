@@ -14,11 +14,16 @@ function App() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState('');
   const [materials, setMaterials] = useState([]);
+  const [students, setStudents] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [discussions, setDiscussions] = useState([]);
   const [grades, setGrades] = useState([]);
 
   useEffect(() => {
+    fetchMaterials();
+    if (user && user.role === 'instructor') {
+      fetchStudents();
+    }
     if (user) {
       fetchGrades();
     }
@@ -41,6 +46,44 @@ function App() {
       setGrades(data);
     } catch (error) {
       console.error('Error fetching grades:', error);
+    }
+  };
+
+  const fetchMaterials = async () => {
+    try {
+      console.log('Fetching materials...');
+      const response = await fetch(`${API_URL}/api/files`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch materials');
+      }
+      const data = await response.json();
+      console.log('Fetched materials:', data);
+      
+      // Transform the data to match the expected format
+      const transformedData = data.map(material => ({
+        ...material,
+        url: material.url || material.downloadURL, // Handle both possible URL fields
+        uploadDate: material.uploadDate || material.createdAt || new Date().toISOString(),
+        originalname: material.originalname || material.filename,
+        size: material.size || 0
+      }));
+      
+      setMaterials(transformedData);
+    } catch (error) {
+      console.error('Error fetching materials:', error);
+    }
+  };
+
+  const fetchStudents = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/students`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch students');
+      }
+      const data = await response.json();
+      setStudents(data);
+    } catch (error) {
+      console.error('Error fetching students:', error);
     }
   };
 
@@ -265,7 +308,15 @@ function App() {
           {user.role === 'instructor' ? (
             <div className="grades-management">
               <h3>Καταχώρηση Βαθμών</h3>
-              {/* Add your grade submission form here */}
+              <div className="students-list">
+                <h4>Λίστα Μαθητών</h4>
+                {students.map((student) => (
+                  <div key={student.id} className="student-item">
+                    <span>{student.username}</span>
+                    {/* Add grade input form here */}
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
             renderGrades()
@@ -283,61 +334,84 @@ function App() {
         </div>
         {activeComponent === 'materials' && (
           <div className="upload-section">
-            <h3>Ανέβασμα Εκπαιδευτικού Υλικού</h3>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              if (selectedFile) {
-                const formData = new FormData();
-                formData.append('file', selectedFile);
-                
-                fetch(`${API_URL}/api/upload`, {
-                  method: 'POST',
-                  body: formData
-                })
-                .then(response => {
-                  if (!response.ok) throw new Error('Upload failed');
-                  return response.json();
-                })
-                .then(data => {
-                  setMaterials([...materials, data]);
-                  setSelectedFile(null);
-                  setUploadError('');
-                })
-                .catch(error => {
-                  console.error('Upload error:', error);
-                  setUploadError('Failed to upload file');
-                });
-              }
-            }}>
-              <input
-                type="file"
-                onChange={handleFileSelect}
-                className="file-input"
-              />
-              <button type="submit" disabled={!selectedFile}>
-                Ανέβασμα
-              </button>
-            </form>
+            <h3>Εκπαιδευτικό Υλικό</h3>
+            {user.role === 'instructor' && (
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (selectedFile) {
+                  const formData = new FormData();
+                  formData.append('file', selectedFile);
+                  
+                  fetch(`${API_URL}/api/upload`, {
+                    method: 'POST',
+                    body: formData
+                  })
+                  .then(response => {
+                    if (!response.ok) throw new Error('Upload failed');
+                    return response.json();
+                  })
+                  .then(data => {
+                    setMaterials(prevMaterials => [...prevMaterials, data]);
+                    setSelectedFile(null);
+                    setUploadError('');
+                  })
+                  .catch(error => {
+                    console.error('Upload error:', error);
+                    setUploadError('Failed to upload file');
+                  });
+                }
+              }}>
+                <input
+                  type="file"
+                  onChange={handleFileSelect}
+                  className="file-input"
+                />
+                <button type="submit" disabled={!selectedFile}>
+                  Ανέβασμα
+                </button>
+              </form>
+            )}
             {uploadError && <p className="error">{uploadError}</p>}
             {uploadProgress > 0 && <progress value={uploadProgress} max="100" />}
+            
             <div className="materials-list">
-              {materials.map((material, index) => (
-                <div key={index} className="material-item">
-                  <a href={material.url} target="_blank" rel="noopener noreferrer">
-                    {material.originalname}
-                  </a>
-                  <div className="metadata">
-                    <span>Μέγεθος: {(material.size / 1024).toFixed(2)} KB</span>
-                    <span>Ημερομηνία: {new Date(material.uploadDate).toLocaleDateString()}</span>
+              <h4>Διαθέσιμα Αρχεία</h4>
+              {materials && materials.length > 0 ? (
+                materials.map((material, index) => (
+                  <div key={index} className="material-item">
+                    <a 
+                      href={material.url || material.downloadURL} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                    >
+                      {material.originalname || material.filename}
+                    </a>
+                    <div className="metadata">
+                      <span>Μέγεθος: {material.size ? (material.size / 1024).toFixed(2) : 'N/A'} KB</span>
+                      <span>
+                        Ημερομηνία: {
+                          material.uploadDate 
+                            ? new Date(material.uploadDate).toLocaleDateString() 
+                            : new Date().toLocaleDateString()
+                        }
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p>Δεν υπάρχουν διαθέσιμα αρχεία.</p>
+              )}
             </div>
           </div>
         )}
       </div>
     );
   };
+
+  // Add this to check if materials are updating
+  useEffect(() => {
+    console.log('Current materials:', materials);
+  }, [materials]);
 
   return (
     <div className="App">
