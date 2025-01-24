@@ -46,21 +46,30 @@ if (!fs.existsSync(uploadsDir)) {
 app.use('/files', express.static(uploadsDir));
 app.use(express.json());
 
-// Αλλάξτε το DATA_FILE path για να χρησιμοποιεί μόνιμο φάκελο
+// Update the DATA_FILE path to be relative to the project root
 const DATA_FILE = process.env.NODE_ENV === 'production'
   ? path.join(process.cwd(), 'data', 'data.json')
   : path.join(__dirname, 'data', 'data.json');
 
-// Δημιουργία του data directory αν δεν υπάρχει
+// Create data directory if it doesn't exist
 const dataDir = path.dirname(DATA_FILE);
-try {
-    if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir, { recursive: true, mode: 0o755 });
-    }
-    // Διορθώστε τα permissions αν χρειάζεται
-    fs.chmodSync(dataDir, 0o755);
-} catch (error) {
-    console.error('Error creating data directory:', error);
+if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+    console.log('Created data directory:', dataDir);
+}
+
+// Initialize data file if it doesn't exist
+if (!fs.existsSync(DATA_FILE)) {
+    const initialData = {
+        materials: [],
+        users: [],
+        announcements: [],
+        grades: [],
+        quizzes: [],
+        quizSubmissions: []
+    };
+    fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
+    console.log('Created initial data file:', DATA_FILE);
 }
 
 // Αρχικοποίηση μεταβλητών
@@ -77,37 +86,38 @@ let quizSubmissions = [];
 const saveData = async () => {
     try {
         const data = {
+            materials,
             users,
             announcements,
-            tests,
-            discussions,
-            materials,
             grades,
             quizzes,
             quizSubmissions
         };
         
-        console.log('Saving data:', data);
-        
-        // Ensure the directory exists
-        if (!fs.existsSync(dataDir)) {
-            fs.mkdirSync(dataDir, { recursive: true });
+        // Create backup of existing file
+        if (fs.existsSync(DATA_FILE)) {
+            const backupFile = `${DATA_FILE}.backup`;
+            fs.copyFileSync(DATA_FILE, backupFile);
         }
         
-        // Write to a temporary file first
-        const tempFile = `${DATA_FILE}.tmp`;
-        fs.writeFileSync(tempFile, JSON.stringify(data, null, 2));
+        // Write new data
+        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+        console.log('Data saved successfully. Current materials:', materials);
         
-        // Rename the temporary file to the actual file
-        fs.renameSync(tempFile, DATA_FILE);
-        
-        console.log('Data saved successfully to:', DATA_FILE);
-        
-        // Verify the save by reading it back
+        // Verify the save
         const savedData = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-        console.log('Verified saved materials:', savedData.materials);
+        if (savedData.materials.length !== materials.length) {
+            throw new Error('Data verification failed');
+        }
+        
+        return true;
     } catch (error) {
         console.error('Error saving data:', error);
+        // Restore from backup if available
+        const backupFile = `${DATA_FILE}.backup`;
+        if (fs.existsSync(backupFile)) {
+            fs.copyFileSync(backupFile, DATA_FILE);
+        }
         throw error;
     }
 };
@@ -115,19 +125,32 @@ const saveData = async () => {
 // Βελτιωμένη συνάρτηση για φόρτωση δεδομένων
 const loadData = () => {
     try {
-        if (fs.existsSync(DATA_FILE)) {
-            console.log('Loading data from:', DATA_FILE);
-            const fileData = fs.readFileSync(DATA_FILE, 'utf8');
-            const data = JSON.parse(fileData);
-            
-            materials = data.materials || [];
-            console.log('Loaded materials:', materials);
-            
-            // Load other data...
-            
-            console.log('Data loaded successfully');
+        if (!fs.existsSync(DATA_FILE)) {
+            console.log('No data file exists, initializing empty data');
+            return;
+        }
+
+        const fileContent = fs.readFileSync(DATA_FILE, 'utf8');
+        if (!fileContent) {
+            console.log('Data file is empty, initializing empty data');
+            return;
+        }
+
+        const data = JSON.parse(fileContent);
+        
+        // Validate materials data
+        if (Array.isArray(data.materials)) {
+            materials = data.materials;
+            console.log(`Loaded ${materials.length} materials from file`);
+            materials.forEach((material, index) => {
+                console.log(`Material ${index + 1}:`, {
+                    filename: material.filename,
+                    url: material.url,
+                    uploadDate: material.uploadDate
+                });
+            });
         } else {
-            console.log('No existing data file, initializing empty arrays');
+            console.warn('Invalid materials data in file, initializing empty array');
             materials = [];
         }
     } catch (error) {
@@ -171,59 +194,38 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
         }
 
         console.log('Starting file upload to Firebase...');
-        console.log('File details:', {
-            originalname: req.file.originalname,
-            mimetype: req.file.mimetype,
-            size: req.file.size
-        });
-
+        
         const fileExtension = path.extname(req.file.originalname);
         const timestamp = Date.now();
         const filename = `uploads/${timestamp}${fileExtension}`;
         
-        try {
-            const storageRef = ref(storage, filename);
-            
-            const metadata = {
-                contentType: req.file.mimetype,
-                customMetadata: {
-                    originalname: req.file.originalname
-                }
-            };
-            
-            console.log('Attempting Firebase upload to:', filename);
-            
-            const snapshot = await uploadBytes(storageRef, req.file.buffer, metadata);
-            console.log('File uploaded successfully to Firebase');
-            
-            const downloadURL = await getDownloadURL(snapshot.ref);
-            console.log('Download URL obtained:', downloadURL);
+        const storageRef = ref(storage, filename);
+        const snapshot = await uploadBytes(storageRef, req.file.buffer);
+        const downloadURL = await getDownloadURL(snapshot.ref);
 
-            const fileData = {
-                filename: filename,
-                originalname: req.file.originalname,
-                size: req.file.size,
-                uploadDate: new Date().toISOString(),
-                url: downloadURL,
-                contentType: req.file.mimetype
-            };
+        const fileData = {
+            filename: filename,
+            originalname: req.file.originalname,
+            size: req.file.size,
+            uploadDate: new Date().toISOString(),
+            url: downloadURL,
+            contentType: req.file.mimetype
+        };
 
-            // Save to materials array and log it
-            materials.push(fileData);
-            await saveData();
-            console.log('Updated materials array:', materials);
-
-            res.json(fileData);
-        } catch (uploadError) {
-            console.error('Firebase upload error details:', uploadError);
-            throw uploadError;
-        }
+        // Add to materials array
+        materials.push(fileData);
+        
+        // Save data and verify
+        await saveData();
+        
+        // Load data to verify it was saved
+        loadData();
+        
+        console.log('File uploaded and saved. Current materials:', materials);
+        res.json(fileData);
     } catch (error) {
         console.error('Upload error:', error);
-        res.status(500).json({ 
-            error: 'Σφάλμα κατά το ανέβασμα του αρχείου',
-            details: error.message
-        });
+        res.status(500).json({ error: 'Upload failed', details: error.message });
     }
 });
 
