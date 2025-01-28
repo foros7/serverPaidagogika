@@ -292,43 +292,43 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     }
 });
 
-// Update files endpoint to fetch from database
+// Update files endpoint to properly fetch from Firebase
 app.get('/api/files', async (req, res) => {
     try {
-        console.log('Fetching files from database and Firebase...');
+        console.log('Fetching files from Firebase...');
+        const storageRef = ref(storage, 'uploads');
         
-        // Get all files from database
-        const materials = await Material.findAll({
-            order: [['createdAt', 'DESC']],
-            raw: true
+        // List all files in uploads folder
+        const listResult = await listAll(storageRef);
+        console.log('Found files:', listResult.items.length);
+        
+        // Get details for each file
+        const filesPromises = listResult.items.map(async (itemRef) => {
+            try {
+                const url = await getDownloadURL(itemRef);
+                const filename = itemRef.name;
+                const originalname = filename.split('/').pop(); // Remove path
+                
+                return {
+                    filename,
+                    originalname,
+                    url,
+                    uploadDate: new Date().toISOString(),
+                    contentType: 'application/octet-stream'
+                };
+            } catch (error) {
+                console.error(`Error getting details for file ${itemRef.name}:`, error);
+                return null;
+            }
         });
 
-        console.log('Found materials in database:', materials.length);
-
-        // Verify files exist in Firebase and get fresh URLs
-        const validMaterials = await Promise.all(
-            materials.map(async (material) => {
-                try {
-                    const storageRef = ref(storage, material.filename);
-                    const url = await getDownloadURL(storageRef);
-                    return {
-                        ...material,
-                        url // Update with fresh URL
-                    };
-                } catch (error) {
-                    console.error(`Error getting URL for ${material.filename}:`, error);
-                    return null;
-                }
-            })
-        );
-
-        // Filter out any null results from failed Firebase checks
-        const finalMaterials = validMaterials.filter(m => m !== null);
-        console.log('Valid materials:', finalMaterials.length);
-
-        res.json(finalMaterials);
+        // Wait for all file details
+        const files = (await Promise.all(filesPromises)).filter(file => file !== null);
+        console.log('Processed files:', files);
+        
+        res.json(files);
     } catch (error) {
-        console.error('Error fetching files:', error);
+        console.error('Error in /api/files:', error);
         res.status(500).json({ 
             error: 'Error fetching files',
             details: error.message 
@@ -763,19 +763,37 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Add this route to test Firebase connection
+// Add a test endpoint to check Firebase connection
 app.get('/api/test-firebase', async (req, res) => {
     try {
+        console.log('Testing Firebase connection...');
+        
+        // Test storage reference
         const testRef = ref(storage, 'test.txt');
-        const testBuffer = Buffer.from('test');
-        await uploadBytes(testRef, testBuffer);
-        const url = await getDownloadURL(testRef);
-        res.json({ status: 'success', url });
+        console.log('Storage reference created:', testRef);
+        
+        // Test listing files
+        const rootRef = ref(storage, '');
+        console.log('Attempting to list files from root...');
+        const listResult = await listAll(rootRef);
+        
+        console.log('Firebase connection test successful');
+        console.log('Prefixes (folders):', listResult.prefixes.map(p => p.fullPath));
+        console.log('Items (files):', listResult.items.map(i => i.fullPath));
+        
+        res.json({
+            success: true,
+            storage: storage.app.options.storageBucket,
+            prefixes: listResult.prefixes.map(p => p.fullPath),
+            items: listResult.items.map(i => i.fullPath)
+        });
     } catch (error) {
-        console.error('Firebase test error:', error);
-        res.status(500).json({ 
-            error: 'Firebase test failed',
-            details: error.message
+        console.error('Firebase test failed:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            code: error.code,
+            stack: error.stack
         });
     }
 });
