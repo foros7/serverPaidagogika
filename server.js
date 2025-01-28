@@ -23,9 +23,16 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Remove the old headers middleware and replace with this:
+// Add this middleware after cors configuration
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    // Allow specific origins
+    const allowedOrigins = ['https://p22095.netlify.app', 'http://localhost:3000'];
+    const origin = req.headers.origin;
+    
+    if (allowedOrigins.includes(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+    }
+    
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, Accept');
     res.header('Access-Control-Allow-Credentials', 'true');
@@ -585,9 +592,12 @@ app.get('/api/grades/student/:studentId', async (req, res) => {
 // Update the students endpoint
 app.get('/api/students', async (req, res) => {
     try {
+        // Add CORS headers explicitly
+        res.header('Access-Control-Allow-Origin', 'https://p22095.netlify.app');
+        res.header('Access-Control-Allow-Credentials', 'true');
+        
         console.log('Fetching students from database...');
         
-        // Get all users from the database with role 'student'
         const students = await User.findAll({
             where: { role: 'student' },
             attributes: ['id', 'username'],

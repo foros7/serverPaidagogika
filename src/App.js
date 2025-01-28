@@ -88,6 +88,7 @@ function App() {
   const fetchStudents = async () => {
     try {
       const response = await fetch(`${API_URL}/api/students`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -101,7 +102,7 @@ function App() {
       }
       
       const data = await response.json();
-      console.log('Fetched students:', data); // Debug log
+      console.log('Fetched students:', data);
       setStudents(data);
     } catch (error) {
       console.error('Error fetching students:', error);
