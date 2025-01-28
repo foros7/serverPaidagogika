@@ -37,16 +37,13 @@ function Auth({ onLogin }) {
     try {
       const endpoint = `${API_URL}/api/${isLogin ? 'login' : 'signup'}`;
       console.log('Attempting to connect to:', endpoint);
+      console.log('Login data:', { username, password });
       
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Origin': 'https://p22095.netlify.app'
         },
-        credentials: 'include',
-        mode: 'cors',
         body: JSON.stringify({
           username,
           password,
@@ -54,14 +51,13 @@ function Auth({ onLogin }) {
         }),
       });
 
+      const data = await response.json();
+      console.log('Response:', data);
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        throw new Error(data.error || 'Σφάλμα σύνδεσης');
       }
 
-      const data = await response.json();
-      console.log('Response data:', data);
-      
       if (!data.user) {
         throw new Error('Invalid response format');
       }

@@ -285,24 +285,41 @@ app.get('/api/files', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
+        console.log('Login attempt for username:', username);
         
-        // Αναζήτηση χρήστη στη βάση
+        // Find user in database
         const user = await User.findOne({ 
-            where: { username }
+            where: { username },
+            raw: true // Get plain object
         });
         
-        if (!user || !(await bcrypt.compare(password, user.password))) {
-            return res.status(401).json({ error: 'Λάθος στοιχεία' });
+        if (!user) {
+            console.log('User not found:', username);
+            return res.status(401).json({ error: 'Λάθος στοιχεία σύνδεσης' });
         }
 
-        // Αφαιρούμε το password πριν στείλουμε την απάντηση
-        const userResponse = user.toJSON();
+        console.log('User found:', { ...user, password: '[HIDDEN]' });
+
+        // Compare password
+        const isValidPassword = await bcrypt.compare(password, user.password);
+        
+        if (!isValidPassword) {
+            console.log('Invalid password for user:', username);
+            return res.status(401).json({ error: 'Λάθος στοιχεία σύνδεσης' });
+        }
+
+        // Remove password from response
+        const userResponse = { ...user };
         delete userResponse.password;
         
+        console.log('Login successful for user:', username);
         res.json({ user: userResponse });
     } catch (error) {
         console.error('Login error:', error);
-        res.status(500).json({ error: 'Σφάλμα κατά τη σύνδεση' });
+        res.status(500).json({ 
+            error: 'Σφάλμα κατά τη σύνδεση',
+            details: error.message 
+        });
     }
 });
 
@@ -723,12 +740,27 @@ app.get('/api/grades', async (req, res) => {
 const PORT = process.env.PORT || 5001;
 (async () => {
     try {
+        // Initialize database
         await initDatabase();
+        console.log('Database initialized');
+
+        // Seed users
         await seedUsers();
+        console.log('Users seeded');
+
+        // Verify users in database
+        const users = await User.findAll({ raw: true });
+        console.log('Current users in database:', users.map(u => ({ 
+            id: u.id, 
+            username: u.username, 
+            role: u.role 
+        })));
+
+        // Start server
         app.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}`);
         });
     } catch (error) {
-        console.error('Failed to initialize database:', error);
+        console.error('Failed to initialize server:', error);
     }
 })(); 
