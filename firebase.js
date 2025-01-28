@@ -1,5 +1,5 @@
 const { initializeApp } = require('firebase/app');
-const { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } = require('firebase/storage');
+const { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, listAll } = require('firebase/storage');
 
 const firebaseConfig = {
     apiKey: "AIzaSyCX78GmGuiVPvvV1FFQgeKZedJ0_xm8v1I",
@@ -25,7 +25,8 @@ try {
         ref,
         uploadBytes,
         getDownloadURL,
-        deleteObject
+        deleteObject,
+        listAll
     };
 } catch (error) {
     console.error('Firebase initialization error:', error);

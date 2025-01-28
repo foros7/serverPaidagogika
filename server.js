@@ -234,46 +234,54 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     }
 });
 
-// Διαδρομή για την προβολή των αρχείων
+// Update the files endpoint to properly fetch from Firebase
 app.get('/api/files', async (req, res) => {
     try {
         console.log('Fetching files from Firebase...');
         
         // Create reference to uploads folder
-        const uploadsRef = ref(storage, 'uploads');
+        const storageRef = ref(storage, 'uploads');
         
-        // List all files in uploads folder
-        const listResult = await listAll(uploadsRef);
-        
-        // Get details for each file
-        const filesPromises = listResult.items.map(async (itemRef) => {
-            try {
-                const url = await getDownloadURL(itemRef);
-                const filename = itemRef.name;
-                // Extract original name from metadata if available
-                const originalname = filename.split('/').pop(); // Remove path
-                
-                return {
-                    filename,
-                    originalname,
-                    url,
-                    uploadDate: new Date(parseInt(filename.split('/')[1])).toISOString(),
-                    size: 0, // Firebase doesn't provide size in metadata by default
-                    contentType: 'application/octet-stream'
-                };
-            } catch (error) {
-                console.error(`Error getting details for file ${itemRef.name}:`, error);
-                return null;
-            }
-        });
+        try {
+            // List all files in uploads folder
+            const listResult = await listAll(storageRef);
+            console.log('Found files:', listResult.items.length);
+            
+            // Get details for each file
+            const filesPromises = listResult.items.map(async (itemRef) => {
+                try {
+                    const url = await getDownloadURL(itemRef);
+                    const filename = itemRef.name;
+                    const originalname = filename.split('/').pop(); // Remove path
+                    
+                    return {
+                        filename,
+                        originalname,
+                        url,
+                        uploadDate: new Date().toISOString(),
+                        contentType: 'application/octet-stream'
+                    };
+                } catch (error) {
+                    console.error(`Error getting details for file ${itemRef.name}:`, error);
+                    return null;
+                }
+            });
 
-        // Wait for all file details to be fetched
-        const files = (await Promise.all(filesPromises)).filter(file => file !== null);
-        
-        console.log('Fetched files from Firebase:', files);
-        res.json(files);
+            // Wait for all file details
+            const files = (await Promise.all(filesPromises)).filter(file => file !== null);
+            console.log('Processed files:', files);
+            
+            res.json(files);
+        } catch (listError) {
+            console.error('Error listing files:', listError);
+            // If the folder doesn't exist yet, return empty array
+            if (listError.code === 'storage/object-not-found') {
+                return res.json([]);
+            }
+            throw listError;
+        }
     } catch (error) {
-        console.error('Error listing files from Firebase:', error);
+        console.error('Error in /api/files:', error);
         res.status(500).json({ 
             error: 'Error fetching files',
             details: error.message 
