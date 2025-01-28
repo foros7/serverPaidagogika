@@ -520,18 +520,28 @@ app.get('/api/grades/student/:studentId', async (req, res) => {
 // Update the students endpoint
 app.get('/api/students', async (req, res) => {
     try {
+        console.log('Fetching students from database...');
+        
         // Get all users from the database with role 'student'
         const students = await User.findAll({
             where: { role: 'student' },
-            attributes: ['id', 'username'], // Only send necessary data
-            raw: true // Get plain objects
+            attributes: ['id', 'username'],
+            raw: true
         });
 
-        console.log('Found students:', students); // Debug log
+        console.log('Found students:', students);
+        
+        if (!students || students.length === 0) {
+            console.log('No students found in database');
+        }
+
         res.json(students);
     } catch (error) {
         console.error('Error fetching students:', error);
-        res.status(500).json({ error: 'Σφάλμα κατά την ανάκτηση μαθητών' });
+        res.status(500).json({ 
+            error: 'Σφάλμα κατά την ανάκτηση μαθητών',
+            details: error.message 
+        });
     }
 });
 

@@ -3,39 +3,42 @@ const { User } = require('./database');
 
 const seedUsers = async () => {
     try {
-        // Δημιουργία των student users
-        for (let i = 1; i <= 3; i++) {
-            const username = `student${i}`;
-            const password = await bcrypt.hash(username, 10); // το password είναι ίδιο με το username
-
-            await User.findOrCreate({
-                where: { username },
-                defaults: {
-                    username,
-                    password,
-                    role: 'student'
-                }
-            });
+        // Check if we already have users
+        const count = await User.count();
+        if (count === 0) {
+            console.log('Seeding users...');
             
-            console.log(`Created or found user: student${i}`);
-        }
-
-        // Δημιουργία instructor
-        const instructorUsername = 'instructor';
-        const instructorPassword = await bcrypt.hash('instructor', 10);
-
-        await User.findOrCreate({
-            where: { username: instructorUsername },
-            defaults: {
-                username: instructorUsername,
-                password: instructorPassword,
+            // Create instructor
+            const hashedPassword = await bcrypt.hash('123456', 10);
+            await User.create({
+                username: 'instructor',
+                password: hashedPassword,
                 role: 'instructor'
-            }
-        });
+            });
 
-        console.log('Users seeding completed successfully');
+            // Create test students
+            const students = [
+                { username: 'student1', password: '123456', role: 'student' },
+                { username: 'student2', password: '123456', role: 'student' },
+                { username: 'student3', password: '123456', role: 'student' }
+            ];
+
+            for (const student of students) {
+                const hashedStudentPassword = await bcrypt.hash(student.password, 10);
+                await User.create({
+                    username: student.username,
+                    password: hashedStudentPassword,
+                    role: student.role
+                });
+            }
+
+            console.log('Users seeded successfully');
+        } else {
+            console.log('Users already exist, skipping seed');
+        }
     } catch (error) {
         console.error('Error seeding users:', error);
+        throw error;
     }
 };
 
