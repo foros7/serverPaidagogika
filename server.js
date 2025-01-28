@@ -517,13 +517,17 @@ app.get('/api/grades/student/:studentId', async (req, res) => {
     }
 });
 
-// Get όλων των μαθητών
-app.get('/api/students', (req, res) => {
+// Update the students endpoint
+app.get('/api/students', async (req, res) => {
     try {
-        const students = users.filter(user => user.role === 'student').map(student => ({
-            id: student.id,
-            username: student.username
-        }));
+        // Get all users from the database with role 'student'
+        const students = await User.findAll({
+            where: { role: 'student' },
+            attributes: ['id', 'username'], // Only send necessary data
+            raw: true // Get plain objects
+        });
+
+        console.log('Found students:', students); // Debug log
         res.json(students);
     } catch (error) {
         console.error('Error fetching students:', error);

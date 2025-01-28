@@ -87,11 +87,21 @@ function App() {
 
   const fetchStudents = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/students`);
+      const response = await fetch(`${API_URL}/api/students`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Origin': 'https://p22095.netlify.app'
+        },
+        credentials: 'include'
+      });
+      
       if (!response.ok) {
         throw new Error('Failed to fetch students');
       }
+      
       const data = await response.json();
+      console.log('Fetched students:', data); // Debug log
       setStudents(data);
     } catch (error) {
       console.error('Error fetching students:', error);
@@ -321,12 +331,42 @@ function App() {
               <h3>Καταχώρηση Βαθμών</h3>
               <div className="students-list">
                 <h4>Λίστα Μαθητών</h4>
-                {students.map((student) => (
-                  <div key={student.id} className="student-item">
-                    <span>{student.username}</span>
-                    {/* Add grade input form here */}
-                  </div>
-                ))}
+                {students && students.length > 0 ? (
+                  students.map((student) => (
+                    <div key={student.id} className="student-item">
+                      <span>{student.username}</span>
+                      <form onSubmit={(e) => {
+                        e.preventDefault();
+                        const score = e.target.score.value;
+                        const subject = e.target.subject.value;
+                        handleGradeSubmit({
+                          studentId: student.id,
+                          subject,
+                          score: parseInt(score)
+                        });
+                        e.target.reset();
+                      }}>
+                        <input
+                          type="text"
+                          name="subject"
+                          placeholder="Μάθημα"
+                          required
+                        />
+                        <input
+                          type="number"
+                          name="score"
+                          placeholder="Βαθμός"
+                          min="0"
+                          max="100"
+                          required
+                        />
+                        <button type="submit">Καταχώρηση</button>
+                      </form>
+                    </div>
+                  ))
+                ) : (
+                  <p>Δεν υπάρχουν εγγεγραμμένοι μαθητές.</p>
+                )}
               </div>
             </div>
           ) : (
