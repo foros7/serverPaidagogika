@@ -224,28 +224,99 @@ function App() {
   };
 
   const renderGrades = () => {
-    if (user.role === 'student') {
-      const studentGrades = grades.filter(grade => grade.studentId === user.id);
-      return (
-        <div className="grades-section">
-          <h3>Οι Βαθμοί μου</h3>
-          {studentGrades.length > 0 ? (
-            <div className="grades-list">
-              {studentGrades.map((grade, index) => (
-                <div key={index} className="grade-item">
-                  <span>Μάθημα: {grade.subject}</span>
-                  <span>Βαθμός: {grade.score}</span>
-                  <span>Ημερομηνία: {new Date(grade.submittedAt).toLocaleDateString()}</span>
-                </div>
-              ))}
+    return (
+      <div className="grades-container">
+        {user.role === 'instructor' ? (
+          <div className="grades-management">
+            <h3>Καταχώρηση Βαθμών</h3>
+            <div className="students-list">
+              {students && students.length > 0 ? (
+                students.map((student) => (
+                  <div key={student.id} className="student-grade-card">
+                    <div className="student-info">
+                      <h4>{student.username}</h4>
+                      <span className="student-id">ID: {student.id}</span>
+                    </div>
+                    <form className="grade-form" onSubmit={(e) => {
+                      e.preventDefault();
+                      handleGradeSubmit({
+                        studentId: student.id,
+                        subject: e.target.subject.value,
+                        score: parseInt(e.target.score.value)
+                      });
+                      e.target.reset();
+                    }}>
+                      <div className="form-group">
+                        <input
+                          type="text"
+                          name="subject"
+                          placeholder="Μάθημα"
+                          required
+                          className="subject-input"
+                        />
+                        <input
+                          type="number"
+                          name="score"
+                          placeholder="Βαθμός"
+                          min="0"
+                          max="100"
+                          required
+                          className="score-input"
+                        />
+                        <button type="submit" className="submit-grade">
+                          Καταχώρηση
+                        </button>
+                      </div>
+                    </form>
+                    <div className="student-grades">
+                      <h5>Προηγούμενοι Βαθμοί</h5>
+                      <div className="grades-list">
+                        {grades
+                          .filter(grade => grade.studentId === student.id)
+                          .map((grade, index) => (
+                            <div key={index} className="grade-item">
+                              <span className="subject">{grade.subject}</span>
+                              <span className="score">{grade.score}</span>
+                              <span className="date">
+                                {new Date(grade.submittedAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                          ))
+                        }
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="no-students">Δεν υπάρχουν εγγεγραμμένοι μαθητές.</p>
+              )}
             </div>
-          ) : (
-            <p>Δεν υπάρχουν καταχωρημένοι βαθμοί.</p>
-          )}
-        </div>
-      );
-    }
-    return null;
+          </div>
+        ) : (
+          <div className="student-grades-view">
+            <h3>Οι Βαθμοί μου</h3>
+            <div className="grades-list">
+              {grades
+                .filter(grade => grade.studentId === user.id)
+                .map((grade, index) => (
+                  <div key={index} className="grade-card">
+                    <div className="grade-header">
+                      <h4>{grade.subject}</h4>
+                      <span className="grade-score">{grade.score}/100</span>
+                    </div>
+                    <div className="grade-footer">
+                      <span className="grade-date">
+                        {new Date(grade.submittedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const renderContent = () => {
@@ -326,52 +397,7 @@ function App() {
             </button>
             <h3>Βαθμοί</h3>
           </div>
-          {user.role === 'instructor' ? (
-            <div className="grades-management">
-              <h3>Καταχώρηση Βαθμών</h3>
-              <div className="students-list">
-                <h4>Λίστα Μαθητών</h4>
-                {students && students.length > 0 ? (
-                  students.map((student) => (
-                    <div key={student.id} className="student-item">
-                      <span>{student.username}</span>
-                      <form onSubmit={(e) => {
-                        e.preventDefault();
-                        const score = e.target.score.value;
-                        const subject = e.target.subject.value;
-                        handleGradeSubmit({
-                          studentId: student.id,
-                          subject,
-                          score: parseInt(score)
-                        });
-                        e.target.reset();
-                      }}>
-                        <input
-                          type="text"
-                          name="subject"
-                          placeholder="Μάθημα"
-                          required
-                        />
-                        <input
-                          type="number"
-                          name="score"
-                          placeholder="Βαθμός"
-                          min="0"
-                          max="100"
-                          required
-                        />
-                        <button type="submit">Καταχώρηση</button>
-                      </form>
-                    </div>
-                  ))
-                ) : (
-                  <p>Δεν υπάρχουν εγγεγραμμένοι μαθητές.</p>
-                )}
-              </div>
-            </div>
-          ) : (
-            renderGrades()
-          )}
+          {renderGrades()}
         </div>
       );
     }
