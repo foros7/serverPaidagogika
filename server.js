@@ -191,7 +191,50 @@ const upload = multer({
     }
 });
 
-// Update upload endpoint to save to database
+// Προσθήκη endpoint για έλεγχο Firebase storage
+app.get('/api/check-firebase', async (req, res) => {
+    try {
+        console.log('Checking Firebase storage...');
+        const storageRef = ref(storage, 'uploads');
+        
+        // List all files in uploads folder
+        const listResult = await listAll(storageRef);
+        console.log('Files in Firebase:', listResult.items.length);
+        
+        // Get details for each file
+        const filesPromises = listResult.items.map(async (itemRef) => {
+            try {
+                const url = await getDownloadURL(itemRef);
+                return {
+                    name: itemRef.name,
+                    fullPath: itemRef.fullPath,
+                    url
+                };
+            } catch (error) {
+                console.error(`Error getting URL for ${itemRef.name}:`, error);
+                return null;
+            }
+        });
+
+        const files = (await Promise.all(filesPromises)).filter(f => f !== null);
+        console.log('File details:', files);
+        
+        res.json({
+            success: true,
+            fileCount: listResult.items.length,
+            files
+        });
+    } catch (error) {
+        console.error('Firebase check error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            code: error.code
+        });
+    }
+});
+
+// Ενημέρωση του upload endpoint
 app.post('/api/upload', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
@@ -200,28 +243,45 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 
         console.log('Starting file upload to Firebase...');
         
-        const fileExtension = path.extname(req.file.originalname);
         const timestamp = Date.now();
-        const filename = `uploads/${timestamp}${fileExtension}`;
+        const safeFilename = req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const filename = `uploads/${timestamp}_${safeFilename}`;
         
         const storageRef = ref(storage, filename);
-        const snapshot = await uploadBytes(storageRef, req.file.buffer);
+        
+        // Add metadata
+        const metadata = {
+            contentType: req.file.mimetype,
+            customMetadata: {
+                originalName: req.file.originalname,
+                uploadDate: new Date().toISOString()
+            }
+        };
+
+        console.log('Uploading to Firebase:', filename);
+        const snapshot = await uploadBytes(storageRef, req.file.buffer, metadata);
+        console.log('File uploaded successfully');
+        
         const downloadURL = await getDownloadURL(snapshot.ref);
+        console.log('Download URL obtained:', downloadURL);
 
-        // Save to database instead of memory
-        const material = await Material.create({
-            filename: filename,
+        const fileData = {
+            filename,
             originalname: req.file.originalname,
+            size: req.file.size,
+            uploadDate: new Date(timestamp).toISOString(),
             url: downloadURL,
-            uploadedBy: 'instructor', // TODO: Get from logged in user
-            createdAt: new Date()
-        });
+            contentType: req.file.mimetype
+        };
 
-        console.log('File saved to database:', material.toJSON());
-        res.json(material);
+        console.log('File data:', fileData);
+        res.json(fileData);
     } catch (error) {
         console.error('Upload error:', error);
-        res.status(500).json({ error: 'Upload failed', details: error.message });
+        res.status(500).json({ 
+            error: 'Upload failed', 
+            details: error.message 
+        });
     }
 });
 
