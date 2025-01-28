@@ -191,7 +191,7 @@ const upload = multer({
     }
 });
 
-// Διαδρομή για την αποθήκευση των αρχείων
+// Update upload endpoint to save to database
 app.post('/api/upload', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
@@ -208,80 +208,60 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
         const snapshot = await uploadBytes(storageRef, req.file.buffer);
         const downloadURL = await getDownloadURL(snapshot.ref);
 
-        const fileData = {
+        // Save to database instead of memory
+        const material = await Material.create({
             filename: filename,
             originalname: req.file.originalname,
-            size: req.file.size,
-            uploadDate: new Date().toISOString(),
             url: downloadURL,
-            contentType: req.file.mimetype
-        };
+            uploadedBy: 'instructor', // TODO: Get from logged in user
+            createdAt: new Date()
+        });
 
-        // Add to materials array
-        materials.push(fileData);
-        
-        // Save data and verify
-        await saveData();
-        
-        // Load data to verify it was saved
-        loadData();
-        
-        console.log('File uploaded and saved. Current materials:', materials);
-        res.json(fileData);
+        console.log('File saved to database:', material.toJSON());
+        res.json(material);
     } catch (error) {
         console.error('Upload error:', error);
         res.status(500).json({ error: 'Upload failed', details: error.message });
     }
 });
 
-// Update the files endpoint to properly fetch from Firebase
+// Update files endpoint to fetch from database
 app.get('/api/files', async (req, res) => {
     try {
-        console.log('Fetching files from Firebase...');
+        console.log('Fetching files from database and Firebase...');
         
-        // Create reference to uploads folder
-        const storageRef = ref(storage, 'uploads');
-        
-        try {
-            // List all files in uploads folder
-            const listResult = await listAll(storageRef);
-            console.log('Found files:', listResult.items.length);
-            
-            // Get details for each file
-            const filesPromises = listResult.items.map(async (itemRef) => {
+        // Get all files from database
+        const materials = await Material.findAll({
+            order: [['createdAt', 'DESC']],
+            raw: true
+        });
+
+        console.log('Found materials in database:', materials.length);
+
+        // Verify files exist in Firebase and get fresh URLs
+        const validMaterials = await Promise.all(
+            materials.map(async (material) => {
                 try {
-                    const url = await getDownloadURL(itemRef);
-                    const filename = itemRef.name;
-                    const originalname = filename.split('/').pop(); // Remove path
-                    
+                    const storageRef = ref(storage, material.filename);
+                    const url = await getDownloadURL(storageRef);
                     return {
-                        filename,
-                        originalname,
-                        url,
-                        uploadDate: new Date().toISOString(),
-                        contentType: 'application/octet-stream'
+                        ...material,
+                        url // Update with fresh URL
                     };
                 } catch (error) {
-                    console.error(`Error getting details for file ${itemRef.name}:`, error);
+                    console.error(`Error getting URL for ${material.filename}:`, error);
                     return null;
                 }
-            });
+            })
+        );
 
-            // Wait for all file details
-            const files = (await Promise.all(filesPromises)).filter(file => file !== null);
-            console.log('Processed files:', files);
-            
-            res.json(files);
-        } catch (listError) {
-            console.error('Error listing files:', listError);
-            // If the folder doesn't exist yet, return empty array
-            if (listError.code === 'storage/object-not-found') {
-                return res.json([]);
-            }
-            throw listError;
-        }
+        // Filter out any null results from failed Firebase checks
+        const finalMaterials = validMaterials.filter(m => m !== null);
+        console.log('Valid materials:', finalMaterials.length);
+
+        res.json(finalMaterials);
     } catch (error) {
-        console.error('Error in /api/files:', error);
+        console.error('Error fetching files:', error);
         res.status(500).json({ 
             error: 'Error fetching files',
             details: error.message 
